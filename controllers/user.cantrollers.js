@@ -74,7 +74,7 @@ const handleLogin = async (req, res) => {
             success: true,
             message: "Login Success",
             user: loginUser,
-            Token: Token
+            
 
         })
 }
@@ -129,7 +129,7 @@ const refreshToken = async (req, res) => {
         .json({
             success: true,
             message: "Refresh token successfully",
-            Token: newToken
+             
 
         })
 }

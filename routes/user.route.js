@@ -1,4 +1,6 @@
 import { Router } from "express";
+import { verifyJwt } from "../middleware/auth.jwt.js";
+const route = Router();
 import {
     handleRegistration,
     handleLogin,
@@ -7,8 +9,6 @@ import {
     handleResetPassword
 } from "../controllers/user.cantrollers.js";
 
-const route = Router();
-import { verifyJwt } from "../middleware/auth.jwt.js";
 
 
 route.post('/registration', handleRegistration) // registration
