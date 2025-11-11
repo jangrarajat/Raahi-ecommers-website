@@ -25,6 +25,9 @@ const productSchema = new Schema({
     type:String,
     requrid:true
    },
+   public_id:{
+      type:String
+   }
 }, { timestamps: true })
 
 const Product = mongoose.model("Product" , productSchema)

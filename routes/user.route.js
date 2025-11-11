@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { verifyJwt } from "../middleware/auth.jwt.js";
+
 const route = Router();
 import {
     handleRegistration,
@@ -7,7 +8,7 @@ import {
     handleLogout,
     refreshToken,
     handleResetPassword
-} from "../controllers/user.cantrollers.js";
+} from "../controllers/user.cantrollers.js";   
 
 
 
