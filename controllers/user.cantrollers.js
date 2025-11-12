@@ -38,12 +38,13 @@ const handleLogin = async (req, res) => {
     const checkPassword = await bcrypt.compare(password, findUser.password)
     if (!checkPassword) return res.status(400).json({ success: false, message: "Incurrect password" })
 
-
+    const role = email === process.env.OWNER_EMAIL ? "owner" : "user";
     // genrate token
     const Token = await jwt.sign({
         _id: findUser._id,
         username: findUser.username,
-        email: findUser.email
+        email: findUser.email,
+        role: role
     }, process.env.ACCESS_TOKEN_SECRET, {
         expiresIn: process.env.ACCESS_TOKEN_EXPIR
     })
@@ -56,7 +57,7 @@ const handleLogin = async (req, res) => {
         expiresIn: process.env.REFRESH_TOKEN_EXPIR
     })
 
-    await User.findByIdAndUpdate(findUser._id, { refreshToken: refreshToken })
+    await User.findByIdAndUpdate(findUser._id, { refreshToken: refreshToken, role: role })
 
     const options = {
         httpOnly: true,
@@ -74,7 +75,8 @@ const handleLogin = async (req, res) => {
             success: true,
             message: "Login Success",
             user: loginUser,
-            
+          
+
 
         })
 }
@@ -110,10 +112,12 @@ const refreshToken = async (req, res) => {
     const decode = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET)
     if (!decode) return res.status(400).json({ success: false, message: "Expired Refresh token" })
     const user = await User.findById(decode._id)
+    const role = user.email === process.env.OWNER_EMAIL ? "owner" : "user";
     const newToken = await jwt.sign({
         _id: user._id,
         username: user.username,
-        email: user.email
+        email: user.email,
+        role: role
     }, process.env.ACCESS_TOKEN_SECRET, {
         expiresIn: process.env.ACCESS_TOKEN_EXPIR
     })
@@ -129,7 +133,7 @@ const refreshToken = async (req, res) => {
         .json({
             success: true,
             message: "Refresh token successfully",
-             
+
 
         })
 }
@@ -141,7 +145,7 @@ const handleResetPassword = async (req, res) => {
     if (!oldPassword || !newPassword) return res.status(400).json({ success: false, message: "OldPassword & new password are requried" })
 
     const user = await User.findById(req.user._id)
-    if(!user)  return res.status(400).json({ success: false, message: "User note Exist" })
+    if (!user) return res.status(400).json({ success: false, message: "User note Exist" })
 
     const compareResult = await bcrypt.compare(oldPassword, user.password)
     if (!compareResult) return res.status(400).json({ success: false, message: "Incorrect password" })

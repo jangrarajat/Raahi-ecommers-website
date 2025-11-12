@@ -2,12 +2,13 @@ import { addNewProduct, deleteProduct, getAppProduct } from "../controllers/dash
 import { Router } from "express";
 import multer from 'multer'
 import { upload } from "../middleware/multer.middleware.js";
+import { verifyJwt } from "../middleware/auth.jwt.js";
 const route = Router()
 
-route.post('/addNewProduct', upload.single('image'), addNewProduct)
+route.post('/addNewProduct', upload.single('image'),verifyJwt, addNewProduct)
 
 route.delete('/deleteProduct', deleteProduct)
 
 route.get('/getAllProduct',  getAppProduct)
 
-export default route
+export default route;

@@ -5,6 +5,11 @@ import Product from "../models/product.model.js";
 
 
 const addNewProduct = async (req, res) => {
+
+    if (req.user.role === "user") return res.status(400).json({ success: false, message: "Only owner can access this feater" })
+    
+    if (!req.body) return res.status(400).json({ success: false, message: "nam, descraption , category , quantity ,image, price these fields are requried" })
+
     const { name, descraption, category, quantity, price } = req.body
     if (!name || !descraption || !category || !quantity || !price) return res.status(400).json({ success: false, message: "all fields are requried" })
 
