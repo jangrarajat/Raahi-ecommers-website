@@ -5,12 +5,6 @@
 # Routes
 
 
-- Like Product         post    /api/like/likeProduct
-- DisLike product      post    /api/like/dislikeProduct
-- Get Like list        get     /api/like/likeList
-
-
-
 ## 📍User API Routes
 
 |     | Description    | Method | Endpoint                      |
@@ -20,7 +14,7 @@
 | 3.  | Logout         | post   | /api/user/logout              |
 | 4.  | RefreshToken   | post   | /api/user/refreshExpiredToken |
 | 5.  | Reset Password | post   | /api/user/resetPassword       |
-| 6.  | Reset Password | post   | /api/user/resetPassword       |
+
 
 
 ## 📍Product API Routes
