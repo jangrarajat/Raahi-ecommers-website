@@ -4,18 +4,18 @@
 
 # Routes
   User Router
-- Registration
-- Login  (genrate Token & RefreshToken and  set Cookie )
-- Logout
-- RefreshToken
-- Reset Password
+- Registration         post    /api/user/registration
+- Login                post    /api/user/login
+- Logout               post    /api/user/logout
+- RefreshToken         post    /api/user/refreshExpiredToken
+- Reset Password       post    /api/user/resetPassword
 ---
   Dashbord route 
-- addNewProduct 
-- deleteProduct
-- getAllProduct
+- addNewProduct        post    /api/product/addNewProduct
+- deleteProduct        delete  /api/product/deleteProduct
+- getAllProduct        get     /api/product/getAllProduct
 ---
   Like Route
-- Like Product
-- DisLike product
-- Get Like list   
+- Like Product         post    /api/like/likeProduct
+- DisLike product      post    /api/like/dislikeProduct
+- Get Like list        get     /api/like/likeList
