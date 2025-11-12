@@ -1,7 +1,17 @@
 # Routes
-  User Routers
+  User Router
 - Registration
-- Login 
+- Login  (genrate Token & RefreshToken )
 - Logout
 - RefreshToken
 - Reset Password
+
+  Dashbord route 
+- addNewProduct 
+- deleteProduct
+- getAllProduct
+
+  Like Route
+- Like Product
+- DisLike product
+- Get Like list   
