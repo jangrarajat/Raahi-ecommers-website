@@ -5,7 +5,7 @@
 # Routes
   User Router
 - Registration         post    /api/user/registration
-- Login                post    /api/user/login
+- Login      -Authentication-          post    /api/user/login
 - Logout               post    /api/user/logout
 - RefreshToken         post    /api/user/refreshExpiredToken
 - Reset Password       post    /api/user/resetPassword
