@@ -39,15 +39,31 @@ const uploadOnCloudinary = async (localFilePath) => {
         if (fs.existsSync(localFilePath)) {
             fs.unlinkSync(localFilePath);
         }
-        throw error
+        console.log("Error in  uploadOnCloudinary", error.message)
+        res.status(500)
+            .json({
+                success: false,
+                message: "Failed uplaod image on cloud",
+                error: error.message
+            })
     }
 }
 
 const deleteImageOnCloudinary = async (public_id) => {
-    const result = await cloudinary.uploader.destroy(public_id)
-    if (!result) return result.status(200).json({ success: false, message: "image destroy failed" })
-    console.log(result)
-    return result
+    try {
+        const result = await cloudinary.uploader.destroy(public_id)
+        if (!result) return result.status(200).json({ success: false, message: "image destroy failed" })
+        console.log(result)
+        return result
+    } catch (error) {
+        console.log("Error in  deleteImageOnCloudinary ", error.message)
+        res.status(500)
+            .json({
+                success: false,
+                message: "Failed Delete image on Cloud",
+                error: error.message
+            })
+    }
 }
 
 export { uploadOnCloudinary, deleteImageOnCloudinary }
