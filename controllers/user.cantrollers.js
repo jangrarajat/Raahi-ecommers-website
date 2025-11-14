@@ -1,7 +1,9 @@
 import jwt, { decode } from "jsonwebtoken";
 import User from "../models/user.model.js";
 import bcrypt from 'bcrypt'
-
+import Otp from "../models/otp.model.js";
+import { sendEmail } from "../utils/sendEmail.js";
+import { otpEmailHtml } from "../utils/mailHtml.js";
 
 //  registration 
 const handleRegistration = async (req, res) => {
@@ -214,10 +216,92 @@ const handleResetPassword = async (req, res) => {
 }
 
 
+const forgetPassword = async (req, res) => {
+    try {
+        const { email } = req.body;
+        const findUser = await User.findOne({ email: email })
+
+        if (!findUser) return res.status(400).json({ success: false, message: "User not exist!!" })
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+        const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+
+        // Save OTP
+        const createdOtp = await Otp.create({
+            email: email,
+            otp: otp,
+            expiresAt: expiresAt
+        });
+
+        if (!createdOtp) {
+            return res.json({ success: false, message: "Otp save error" });
+        }
+
+        // Send Email
+        const html = otpEmailHtml(otp);
+        await sendEmail(email, "Your OTP Code", html);
+
+        return res.status(200).json({
+            success: true,
+            message: "OTP sent successfully"
+        });
+
+    } catch (error) {
+        console.log("Error in forgetPassword", error.message);
+        return res.status(500).json({
+            success: false,
+            message: "Error in forget password",
+            error: error.message
+        });
+    }
+};
+
+
+const verifyOtp = async (req, res) => {
+    try {
+        const { email, otp } = req.body;
+        if (!email || !otp) {
+            return res.status(400).json({
+                success: false,
+                message: "Email & OTP are required"
+            });
+        }
+
+        const findUser = await User.findOne({ email: email })
+
+        if (!findUser) return res.status(400).json({ success: false, message: "User not exist!!" })
+
+
+        const otpData = await Otp.findOne({ email }).sort({ createdAt: -1 });
+         
+        if (!otpData) {
+            return res.json({ success: false, message: "OTP expired" });
+        }
+
+        // Check Expiry
+        if (otpData.expiresAt < new Date()) {
+            return res.json({ success: false, message: "OTP expired" });
+        }
+
+        // Check OTP
+        if (otpData.otp !== otp) {
+            return res.json({ success: false, message: "Invalid OTP" });
+        }
+        await Otp.deleteMany({ email });
+        return res.json({ success: true, message: "OTP verified" });
+
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Server error" });
+    }
+};
+
+
 export {
     handleRegistration,
     handleLogin,
     refreshToken,
     handleLogout,
-    handleResetPassword
+    handleResetPassword,
+    forgetPassword,
+    verifyOtp
 };

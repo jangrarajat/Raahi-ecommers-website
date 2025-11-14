@@ -2,9 +2,10 @@ import express from 'express';
 import 'dotenv/config';
 import connectDB from './db/configDB.js';
 import userRoute from './routes/user.route.js';
-import productRoute from './routes/dashboard.route.js'
+import dashboardRoute from './routes/dashboard.route.js'
 import likeRouter from './routes/likeProduct.route.js'
 import cartRoute from './routes/cart.route.js'
+import getLimitedProduct from './routes/product.route.js'
 import cors from 'cors'
 import cookieParser from "cookie-parser";
 
@@ -25,9 +26,12 @@ app.get('/', (req, res) => {
 })
 
 app.use('/api/user', userRoute)   // user route
-app.use('/api/product', productRoute)   // product  route
+app.use('/api/dashboard', dashboardRoute)   //dashboard  route
 app.use('/api/like', likeRouter)   // like route
-app.use('/api/cart', cartRoute)
+app.use('/api/cart', cartRoute) // cart route
+
+app.use('/api/limited', getLimitedProduct)
+
 
 
 app.listen(process.env.PORT, () => {
