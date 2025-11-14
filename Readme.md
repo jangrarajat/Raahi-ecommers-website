@@ -44,13 +44,18 @@ It includes **JWT-based authentication**, **Cloudinary image uploads**, and **ro
 
 
 ## 📍User API Routes
-|     | Description    | Method | Endpoint                      |
-| --- | -------------- | ------ | ----------------------------- |
-| 1.  | Registration   | post   | /api/user/registration        |
-| 2.  | Login          | post   | /api/user/login               |
-| 3.  | Logout         | post   | /api/user/logout              |
-| 4.  | RefreshToken   | post   | /api/user/refreshExpiredToken |
-| 5.  | Reset Password | post   | /api/user/resetPassword       |
+|     | Description         | Method | Endpoint                      |
+| --- | ------------------- | ------ | ----------------------------- |
+| 1.  | Registration        | post   | /api/user/registration        |
+| 2.  | Login               | post   | /api/user/login               |
+| 3.  | Logout              | post   | /api/user/logout              |
+| 4.  | RefreshToken        | post   | /api/user/refreshExpiredToken |
+| 5.  | Reset Password      | post   | /api/user/resetPassword       |
+| 5.  | forgetPassword      | post   | /api/user/resetPassword       |
+| 6.  | Reset Password      | post   | /api/user/forgetPassword      |
+| 7.  | verify otp Password | post   | /api/user/verify-otp          |
+
+
 
  ## 📍Product API Routes 
 |     | Description   | Method | Endpoint                   |
