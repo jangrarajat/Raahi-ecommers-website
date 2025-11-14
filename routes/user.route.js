@@ -9,7 +9,8 @@ import {
     refreshToken,
     handleResetPassword,
     forgetPassword,
-    verifyOtp
+    verifyOtp,
+    setForgetPassword
 } from "../controllers/user.cantrollers.js";
 
 
@@ -27,5 +28,7 @@ route.patch('/resetPassword', verifyJwt, handleResetPassword) // ResetPassword
 route.post('/forgetPassword', forgetPassword) //forget password
 
 route.post('/verify-otp', verifyOtp) //forget password
+
+route.post('/setForgetPassword', setForgetPassword) //forget password
 
 export default route;

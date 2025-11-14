@@ -273,7 +273,7 @@ const verifyOtp = async (req, res) => {
 
 
         const otpData = await Otp.findOne({ email }).sort({ createdAt: -1 });
-         
+
         if (!otpData) {
             return res.json({ success: false, message: "OTP expired" });
         }
@@ -288,12 +288,64 @@ const verifyOtp = async (req, res) => {
             return res.json({ success: false, message: "Invalid OTP" });
         }
         await Otp.deleteMany({ email });
-        return res.json({ success: true, message: "OTP verified" });
+
+        const user = await User.findOne({ email: email })
+        const options = {
+            httpOnly: true,
+            secure: false,
+            sameSite: "strict",
+        }
+
+        const forgetPasswordToken = await jwt.sign({
+            _id: user._id,
+            username: user.username,
+            email: user.email,
+        }, process.env.FORGET_PASSWORD_TOKEN_SECRET, {
+            expiresIn: process.env.FORGET_PASSWORD_TOKEN_EXPIR
+        })
+        return res.status(200)
+            .cookie("forgetPasswordToken", forgetPasswordToken, options)
+            .json({ success: true, message: "OTP verified success" });
 
     } catch (error) {
         res.status(500).json({ success: false, message: "Server error" });
     }
 };
+
+const setForgetPassword = async (req, res) => {
+    try {
+        const { newPassword } = req.body
+
+        const forgetPasswordToken = req.cookies?.forgetPasswordToken
+
+        if (!forgetPasswordToken) return res.status(500).json({ success: false, message: "UnAuthorize request" })
+
+        const decode = jwt.verify(forgetPasswordToken, process.env.FORGET_PASSWORD_TOKEN_SECRET)
+        if (decode === "jwt expired") return res.status(400).json({ success: false, message: "Token expired" })
+        console.log(decode)
+
+        const user = await User.findById(decode._id)
+
+
+        user.password = newPassword;
+        await user.save()
+
+        const options = {
+            httpOnly: true,
+            secure: false,
+            sameSite: "strict",
+        }
+
+        res.status(200)
+            .clearCookie("forgetPasswordToken", options)
+            .json({ success: true, message: "set newPassword success", user })
+
+    } catch (error) {
+        console.log(error.message)
+        if (error.message === "jwt expired") return res.status(500).json({ success: false, message: error.message }) 
+        res.status(500).json({ success: false, message: "server error" })
+    }
+}
 
 
 export {
@@ -303,5 +355,6 @@ export {
     handleLogout,
     handleResetPassword,
     forgetPassword,
-    verifyOtp
+    verifyOtp,
+    setForgetPassword
 };
