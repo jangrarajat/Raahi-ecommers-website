@@ -8,7 +8,7 @@ const serviceAreaSchema = new mongoose.Schema({
         minlength: 6,
         maxlength: 6
     },
-    DeliveryStatus: {
+    DeliveryAvlabelStatus: {
         type: Boolean,
         default: true
     }

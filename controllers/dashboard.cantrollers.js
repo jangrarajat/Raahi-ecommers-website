@@ -94,23 +94,24 @@ const addServicesArea = async (req, res) => {
     }
 }
 
-const updateDeliveryStatus = async (req, res) => {
+const updateDeliveryAvlabelStatus = async (req, res) => {
     try {
-        const { DeliveryStatus, pincode } = req.body
+        const { DeliveryAvlabelStatus, pincode } = req.body
 
-        if (!DeliveryStatus || !pincode) return res.status(400).json({ success: false, message: " All field are reueried" })
+        if (DeliveryAvlabelStatus === undefined  || !pincode) return res.status(400).json({ success: false, message: "DeliveryAvlabelStatus & pincode field are reueried" })
 
         const existPincode = await ServiceArea.findOne({ pincode })
         if (!existPincode) return res.status(400).json({ success: false, message: "This pincode not exist" })
 
-        const getDeliveryStatus = await ServiceArea.findOneAndUpdate({ pincode }, { DeliveryStatus: DeliveryStatus })
+        const getDeliveryStatus = await ServiceArea.findOneAndUpdate({ pincode }, { DeliveryAvlabelStatus: DeliveryAvlabelStatus })
         if (!getDeliveryStatus) return res.status(400).json({ success: false, message: "Update failed DeliveryStatus" })
         console.log(getDeliveryStatus)
 
         res.status(200)
             .json({
                 success: true,
-                message: "Update successfully DeliveryStatus"
+                message: "Update successfully DeliveryStatus",
+                getDeliveryStatus
             })
 
     } catch (error) {
@@ -119,4 +120,4 @@ const updateDeliveryStatus = async (req, res) => {
     }
 }
 
-export { addNewProduct, deleteProduct, getAppProduct, addServicesArea, updateDeliveryStatus }
+export { addNewProduct, deleteProduct, getAppProduct, addServicesArea, updateDeliveryAvlabelStatus }

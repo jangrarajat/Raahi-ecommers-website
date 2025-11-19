@@ -6,6 +6,7 @@ import dashboardRoute from './routes/dashboard.route.js'
 import likeRouter from './routes/likeProduct.route.js'
 import cartRoute from './routes/cart.route.js'
 import getLimitedProduct from './routes/product.route.js'
+import addressRoute from './routes/address.route.js'
 import cors from 'cors'
 import cookieParser from "cookie-parser";
 
@@ -31,6 +32,7 @@ app.use('/api/like', likeRouter)   // like route
 app.use('/api/cart', cartRoute) // cart route
 
 app.use('/api/limited', getLimitedProduct)
+app.use('/address', addressRoute)
 
 
 
