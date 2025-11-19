@@ -1,5 +1,6 @@
 import { uploadOnCloudinary, deleteImageOnCloudinary } from "../middleware/multer.middleware.js";
 import Product from "../models/product.model.js";
+import ServiceArea from "../models/serviceArea.model.js";
 
 
 
@@ -7,7 +8,7 @@ import Product from "../models/product.model.js";
 const addNewProduct = async (req, res) => {
 
     if (req.user.role === "user") return res.status(400).json({ success: false, message: "Only owner can access this feater" })
-    
+
     if (!req.body) return res.status(400).json({ success: false, message: "nam, descraption , category , quantity ,image, price these fields are requried" })
 
     const { name, descraption, category, quantity, price } = req.body
@@ -79,4 +80,43 @@ const getAppProduct = async (req, res) => {
 }
 
 
-export { addNewProduct, deleteProduct, getAppProduct }
+const addServicesArea = async (req, res) => {
+    try {
+        const { pincode } = req.body;
+        const existPincode = await ServiceArea.findOne({ pincode })
+        if (existPincode) return res.status(400).json({ success: false, message: "This pincode Exist" })
+        await ServiceArea.create({ pincode });
+
+        res.status(201).json({ success: true, message: "Pincode added" });
+    } catch (error) {
+        console.log("Error in  addServicesArea")
+        res.status(400).json({ success: false, message: error.message });
+    }
+}
+
+const updateDeliveryStatus = async (req, res) => {
+    try {
+        const { DeliveryStatus, pincode } = req.body
+
+        if (!DeliveryStatus || !pincode) return res.status(400).json({ success: false, message: " All field are reueried" })
+
+        const existPincode = await ServiceArea.findOne({ pincode })
+        if (!existPincode) return res.status(400).json({ success: false, message: "This pincode not exist" })
+
+        const getDeliveryStatus = await ServiceArea.findOneAndUpdate({ pincode }, { DeliveryStatus: DeliveryStatus })
+        if (!getDeliveryStatus) return res.status(400).json({ success: false, message: "Update failed DeliveryStatus" })
+        console.log(getDeliveryStatus)
+
+        res.status(200)
+            .json({
+                success: true,
+                message: "Update successfully DeliveryStatus"
+            })
+
+    } catch (error) {
+        console.log("Error in updateDeliveryStatus  ", error.message)
+        res.status(500).json({ success: false, message: "server Error" });
+    }
+}
+
+export { addNewProduct, deleteProduct, getAppProduct, addServicesArea, updateDeliveryStatus }
