@@ -32,6 +32,21 @@ const addAddress = async (req, res) => {
 
 const setDefaultAddress = async (req, res) => {
     try {
+        const { addressId } = req.body
+        const user = req.user._id
+        // Step 1: Sab addresses ko default=false karo
+       
+        await Address.updateMany(
+            { userId: user },
+            { $set: { isDefault: false } }
+        );
+
+        // Step 2: Jo user ne choose kiya usko default=true karo
+        await Address.findByIdAndUpdate(
+            addressId,
+            { isDefault: true }
+        );
+
         res.status(200)
             .json({
                 success: true,
