@@ -7,6 +7,7 @@ import likeRouter from './routes/likeProduct.route.js'
 import cartRoute from './routes/cart.route.js'
 import getLimitedProduct from './routes/product.route.js'
 import addressRoute from './routes/address.route.js'
+import orderRouter from './routes/order.routes.js'
 import cors from 'cors'
 import cookieParser from "cookie-parser";
 
@@ -33,6 +34,8 @@ app.use('/api/cart', cartRoute) // cart route
 
 app.use('/api/limited', getLimitedProduct)
 app.use('/address', addressRoute)
+app.use("/api/order", orderRouter);
+
 
 
 

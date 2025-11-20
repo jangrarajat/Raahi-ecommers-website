@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { verifyJwt } from "../middleware/auth.jwt.js";
 import { validateAddress } from "../middleware/address.Validation.middleware.js";
-import { addAddress, deleteAddress, getAllAddress, setDefaultAddress ,sendOtpVerifyPhoneNumber} from "../controllers/address.cantrollers.js";
+import { addAddress, deleteAddress, getAllAddress, setDefaultAddress  } from "../controllers/address.cantrollers.js";
 
 const route = Router()
 
@@ -14,7 +14,7 @@ route.delete('/delete-address', verifyJwt, deleteAddress)
 
 route.get('/get-all-address', verifyJwt, getAllAddress)
 
-route.post('/send-otp-phone', verifyJwt, sendOtpVerifyPhoneNumber)
+ 
 
 
 

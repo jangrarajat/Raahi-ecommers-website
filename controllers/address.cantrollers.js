@@ -1,5 +1,5 @@
 import Address from "../models/address.model.js";
-import { otpSender } from "../utils/sms.otpSender.js";
+ 
 
 
 
@@ -102,31 +102,6 @@ const getAllAddress = async (req, res) => {
     }
 }
 
-const sendOtpVerifyPhoneNumber = async (req, res) => {
-    try {
-
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
-        const msg = `Your Address verification code is: ${otp}
-         Otp expire in 5 minut`
  
-        const number = process.env.MY_NUMBER;
-        await otpSender({ num: number, msg: msg })
 
-        return res.status(200).json({
-            success: true,
-            message: "OTP sent successfully"
-
-        });
-
-    } catch (error) {
-        console.error("❌ Error in sendOtpVerifyPhoneNumber:", error.message); // Error message print karein
-        return res.status(500).json({
-            success: false,
-            message: "Server Error: SMS nahi gaya",
-            error: error.message
-        });
-    }
-}
-
-export { addAddress, setDefaultAddress, deleteAddress, getAllAddress, sendOtpVerifyPhoneNumber }
+export { addAddress, setDefaultAddress, deleteAddress, getAllAddress }

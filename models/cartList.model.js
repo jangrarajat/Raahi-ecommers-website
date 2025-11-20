@@ -1,6 +1,5 @@
 import { Schema, mongoose } from 'mongoose'
-import Product from './product.model.js'
-import User from './user.model.js'
+
 
 const cartSchema = new Schema({
     productId: {
@@ -13,6 +12,11 @@ const cartSchema = new Schema({
         ref: 'User',
         required: true
     },
+    quantity: {
+        type: Number,
+        default: 1,
+        min: 1
+    }
 
 }, { timestamps: true })
 

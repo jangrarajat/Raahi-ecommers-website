@@ -1,6 +1,6 @@
 import Address from "../models/address.model.js";
 import ServiceArea from "../models/serviceArea.model.js";
-import { otpSender } from "../utils/sms.otpSender.js";
+ 
 
 
 export const validateAddress = async (req, res, next) => {
@@ -32,7 +32,7 @@ export const validateAddress = async (req, res, next) => {
 
         });
 
-  
+
 
 
 
@@ -76,6 +76,11 @@ export const validateAddress = async (req, res, next) => {
                 message: "Delivery currently unavailable for this pincode"
             });
         }
+
+
+
+         
+
 
         next();
 
