@@ -1,9 +1,10 @@
 import Address from "../models/address.model.js";
 import ServiceArea from "../models/serviceArea.model.js";
+import { otpSender } from "../utils/sms.otpSender.js";
 
 
 export const validateAddress = async (req, res, next) => {
-    
+
     try {
         const { name, phone, pincode, state, district, city, landmark } = req.body;
 
@@ -28,8 +29,12 @@ export const validateAddress = async (req, res, next) => {
             district,
             city,
             landmark
-            
+
         });
+
+  
+
+
 
         if (existAddress) {
             return res.status(400).json({
