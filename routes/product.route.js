@@ -3,6 +3,6 @@ import { getAppProduct } from "../controllers/products.cantrollers.js";
 
 const route = Router()
 
-route.post('/getLimitProduct', getAppProduct)
+route.get('/getLimitProduct', getAppProduct)
 
 export default route; 

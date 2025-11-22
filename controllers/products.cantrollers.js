@@ -3,7 +3,7 @@ import Product from "../models/product.model.js";
 const getAppProduct = async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1; // default page 1
-        const limit = parseInt(req.query.limit) || 2; // default 50 products per page
+        const limit = parseInt(req.query.limit) || 10; // default 50 products per page
         const skip = (page - 1) * limit;
 
         const category = req.query.category || "all";
@@ -30,6 +30,7 @@ const getAppProduct = async (req, res) => {
             totalProducts,
             hasNextPage,
             products,
+            category
         });
     } catch (error) {
         console.error("Error fetching products:", error);

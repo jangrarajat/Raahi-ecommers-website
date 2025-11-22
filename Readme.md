@@ -125,7 +125,7 @@ Contributions are what make the open-source community such an amazing place to l
 ## 📞 Contact
 
   Name - Rajat Jangra
-   Email - [rajatjangra940@gmail.com]
+  Email - [rajatjangra940@gmail.com]
 Project Link: [https://github.com/jangrarajat/Raahi-ecommers-website.git]
 
 ---
