@@ -115,11 +115,12 @@ const handleLogout = async (req, res) => {
             httpOnly: true,
             secure: true,
             sameSite: "None",
+            expires: new Date(0)
         }
 
         res.status(200)
-            .clearCookie("refreshToken", options)
-            .clearCookie("Token", options)
+            .cookie("refreshToken", "", options)
+            .cookie("Token", "", options)
             .json({
                 success: true,
                 message: "Logout Successfully",
