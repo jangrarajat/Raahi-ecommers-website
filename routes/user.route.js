@@ -10,7 +10,8 @@ import {
     handleResetPassword,
     forgetPassword,
     verifyOtp,
-    setForgetPassword
+    setForgetPassword,
+    getMe
 } from "../controllers/user.cantrollers.js";
 
 
@@ -30,5 +31,7 @@ route.post('/forgetPassword', forgetPassword) //forget password
 route.post('/verify-otp', verifyOtp) //forget password
 
 route.post('/setForgetPassword', setForgetPassword) //forget password
+
+route.get('/get/me', verifyJwt, getMe)
 
 export default route;

@@ -342,11 +342,28 @@ const setForgetPassword = async (req, res) => {
 
     } catch (error) {
         console.log(error.message)
-        if (error.message === "jwt expired") return res.status(500).json({ success: false, message: error.message }) 
+        if (error.message === "jwt expired") return res.status(500).json({ success: false, message: error.message })
         res.status(500).json({ success: false, message: "server error" })
     }
 }
 
+
+const getMe = async (req, res) => {
+    try {
+        const user = req.user
+        const findUser = await User.findById(user._id).select('-password -refreshToken')
+        if (!findUser) return res.status(400).json({ success: false, message: "user not exist" })
+       
+            res.status(200)
+            .json({
+                success:true,
+                findUser
+            })
+    } catch (error) {
+        console.log("error in getME ", error.message)
+    }
+
+}
 
 export {
     handleRegistration,
@@ -356,5 +373,6 @@ export {
     handleResetPassword,
     forgetPassword,
     verifyOtp,
-    setForgetPassword
+    setForgetPassword,
+    getMe
 };
