@@ -113,8 +113,8 @@ const handleLogout = async (req, res) => {
 
         const options = {
             httpOnly: true,
-            secure: false,
-            sameSite: "strict",
+            secure: true,
+            sameSite: "None",
         }
 
         res.status(200)
@@ -157,8 +157,8 @@ const refreshToken = async (req, res) => {
 
         const options = {
             httpOnly: true,
-            secure: false,
-            sameSite: "strict",
+            secure: true,
+            sameSite: "None",
         }
 
         res.status(201)
@@ -292,8 +292,8 @@ const verifyOtp = async (req, res) => {
         const user = await User.findOne({ email: email })
         const options = {
             httpOnly: true,
-            secure: false,
-            sameSite: "strict",
+            secure: true,
+            sameSite: "None",
         }
 
         const forgetPasswordToken = await jwt.sign({
@@ -332,8 +332,8 @@ const setForgetPassword = async (req, res) => {
 
         const options = {
             httpOnly: true,
-            secure: false,
-            sameSite: "strict",
+            secure: true,
+            sameSite: "None",
         }
 
         res.status(200)
@@ -353,10 +353,10 @@ const getMe = async (req, res) => {
         const user = req.user
         const findUser = await User.findById(user._id).select('-password -refreshToken')
         if (!findUser) return res.status(400).json({ success: false, message: "user not exist" })
-       
-            res.status(200)
+
+        res.status(200)
             .json({
-                success:true,
+                success: true,
                 findUser
             })
     } catch (error) {
