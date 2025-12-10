@@ -17,8 +17,10 @@ const app = express();
 
 app.use(cookieParser()); // config  cookie Parser
 
+app.set('trust proxy', 1);
+
 app.use(cors({
-    origin: ["http://localhost:5173", "https://rm-com.vercel.app"] , // tumhara frontend URL
+    origin: ["http://localhost:5173", "https://rm-com.vercel.app"], // tumhara frontend URL
     credentials: true
 }));  // config cord
 app.use(express.json())   // config json
