@@ -22,7 +22,7 @@ app.set('trust proxy', 1);
 app.use(cors({
     origin: ["http://localhost:5173", "https://rm-com.vercel.app"], // tumhara frontend URL
     credentials: true
-}));  // config cord
+}));  // config cors
 app.use(express.json())   // config json
 connectDB()  // connect data base 
 

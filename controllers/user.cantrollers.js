@@ -78,6 +78,8 @@ const handleLogin = async (req, res) => {
             sameSite: "None",
         }
 
+        
+
 
         const loginUser = await User.findById(findUser._id).select("-password -refreshToken")
 
@@ -114,13 +116,13 @@ const handleLogout = async (req, res) => {
         const options = {
             httpOnly: true,
             secure: true,
-            sameSite: "None",
+            sameSite: "Lax",
             expires: new Date(0)
         }
 
         res.status(200)
-            .cookie("refreshToken", "", options)
-            .cookie("Token", "", options)
+            .clearCookie("refreshToken", options) // options pass karna zaroori hai
+            .clearCookie("Token", options)
             .json({
                 success: true,
                 message: "Logout Successfully",
@@ -294,7 +296,7 @@ const verifyOtp = async (req, res) => {
         const options = {
             httpOnly: true,
             secure: true,
-            sameSite: "None",
+            sameSite: "Lax",
         }
 
         const forgetPasswordToken = await jwt.sign({
@@ -334,7 +336,7 @@ const setForgetPassword = async (req, res) => {
         const options = {
             httpOnly: true,
             secure: true,
-            sameSite: "None",
+            sameSite: "Lax",
         }
 
         res.status(200)
