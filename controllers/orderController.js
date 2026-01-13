@@ -1,40 +1,68 @@
 import Order from "../models/order.model.js";
 import Cart from "../models/cartList.model.js";
+import Product from "../models/product.model.js"; 
 
+// =============================================
+// 1. PLACE ORDER (Handles 'Buy Now' & 'Cart')
+// =============================================
 const placeOrder = async (req, res) => {
     try {
         const userId = req.user._id;
-        const { addressId, paymentMethod } = req.body;
+        
+        // Frontend se data receive karo
+        const { addressId, paymentMethod, productId, singleQuantity } = req.body;
 
         if (!addressId || !paymentMethod) {
             return res.status(400).json({ success: false, message: "Address and Payment Method required" });
         }
 
-        // 1. User ka Poora Cart uthao
-        const cartItems = await Cart.find({ userId }).populate("productId");
-
-        if (!cartItems || cartItems.length === 0) {
-            return res.status(400).json({ success: false, message: "Cart is empty" });
-        }
-
-        // 2. Total Amount Calculate karo
+        let orderItems = [];
         let totalAmount = 0;
-        const orderItems = [];
+        let isBuyNow = false; // Flag to identify order type
 
-        for (const item of cartItems) {
-            if (!item.productId) continue;
+        // --- SCENARIO A: BUY NOW (Single Product) ---
+        if (productId) {
+            isBuyNow = true;
+            const quantity = singleQuantity || 1; 
 
-            const itemTotal = item.productId.price * item.quantity;
-            totalAmount += itemTotal;
+            // Price DB se fetch karte hain (Security ke liye)
+            const product = await Product.findById(productId);
+            if (!product) {
+                return res.status(404).json({ success: false, message: "Product not found" });
+            }
 
             orderItems.push({
-                productId: item.productId._id,
-                quantity: item.quantity,
-                price: item.productId.price
+                productId: product._id,
+                quantity: quantity,
+                price: product.price
             });
+
+            totalAmount = product.price * quantity;
+        } 
+        
+        // --- SCENARIO B: CART CHECKOUT (Multiple Products) ---
+        else {
+            const cartItems = await Cart.find({ userId }).populate("productId");
+
+            if (!cartItems || cartItems.length === 0) {
+                return res.status(400).json({ success: false, message: "Cart is empty" });
+            }
+
+            for (const item of cartItems) {
+                if (!item.productId) continue;
+
+                const itemTotal = item.productId.price * item.quantity;
+                totalAmount += itemTotal;
+
+                orderItems.push({
+                    productId: item.productId._id,
+                    quantity: item.quantity,
+                    price: item.productId.price
+                });
+            }
         }
 
-        // 3. Order Create karo
+        // --- CREATE ORDER IN DATABASE ---
         const newOrder = await Order.create({
             userId,
             items: orderItems,
@@ -45,12 +73,14 @@ const placeOrder = async (req, res) => {
             orderStatus: "pending"
         });
 
-        // 4. Order lagne ke baad Cart ko POORA KHALI kar do
-        await Cart.deleteMany({ userId });
+        // Agar 'Buy Now' nahi tha (yani Cart se khareeda), tabhi Cart khali karo
+        if (!isBuyNow) {
+            await Cart.deleteMany({ userId });
+        }
 
         res.status(201).json({
             success: true,
-            message: "Order placed successfully",
+            message: isBuyNow ? "Single Order Placed" : "Order Placed Successfully",
             orderId: newOrder._id
         });
 
@@ -60,98 +90,112 @@ const placeOrder = async (req, res) => {
     }
 };
 
-// My Orders aur Admin wale functions (Pichle code se same hain)
+// =============================================
+// 2. GET MY ORDERS (User)
+// =============================================
 const getMyOrders = async (req, res) => {
     try {
         const orders = await Order.find({ userId: req.user._id })
-            .populate("items.productId").populate("addressId").sort({ createdAt: -1 });
+            .populate("items.productId") // Product details dikhane ke liye
+            .populate("addressId")       // Address details ke liye
+            .sort({ createdAt: -1 });    // Latest order sabse upar
+            
         res.status(200).json({ success: true, orders });
     } catch (error) {
         res.status(500).json({ success: false, message: "Error fetching orders" });
     }
 };
 
+// =============================================
+// 3. GET ALL ORDERS (Admin/Owner)
+// =============================================
 const getAllOrdersAdmin = async (req, res) => {
     try {
+        // Sirf Owner hi sabke orders dekh sake
         if (req.user.role !== "owner") return res.status(403).json({ message: "Access Denied" });
-        const orders = await Order.find().populate("items.productId").populate("userId", "username email").populate("addressId").sort({ createdAt: -1 });
+        
+        const orders = await Order.find()
+            .populate("items.productId")
+            .populate("userId", "username email") // User ka naam aur email bhi chahiye admin ko
+            .populate("addressId")
+            .sort({ createdAt: -1 });
+            
         res.status(200).json({ success: true, orders });
     } catch (error) {
         res.status(500).json({ success: false, message: "Error fetching orders" });
     }
 };
 
+// =============================================
+// 4. UPDATE ORDER STATUS (Admin/Owner)
+// =============================================
 const updateOrderStatus = async (req, res) => {
     try {
         const { orderId, status } = req.body;
+        
         if (req.user.role !== "owner") return res.status(403).json({ message: "Access Denied" });
+        
+        // Status update kar rahe hain (Pending -> Shipped -> Delivered)
         const order = await Order.findByIdAndUpdate(orderId, { orderStatus: status }, { new: true });
+        
+        if(!order) return res.status(404).json({ success: false, message: "Order not found" });
+
         res.status(200).json({ success: true, message: "Status Updated", order });
     } catch (error) {
         res.status(500).json({ success: false, message: "Error updating status" });
     }
 };
 
-const cancelledOdder = async (req, res) => {
+// =============================================
+// 5. CANCEL ORDER (User Side - NO DELETE)
+// =============================================
+const cancelOrder = async (req, res) => {
     try {
-        const userId = req.user._id; // Logged in user ki ID
-        const { orderId } = req.body; // Frontend se Order ID aayegi
+        const userId = req.user._id;
+        const { orderId } = req.body;
 
-        // 1. Check karo ki Order ID aayi hai ya nahi
         if (!orderId) {
-            return res.status(400).json({
-                success: false,
-                message: "Order ID is required"
-            });
+            return res.status(400).json({ success: false, message: "Order ID is required" });
         }
 
-        // 2. Order dhundo jo User ID se match kare 
-        // (Taaki user A galti se User B ka order cancel na kar de)
+        // Order dhoondo (Delete nahi karna)
         const order = await Order.findOne({ _id: orderId, userId: userId });
 
         if (!order) {
-            return res.status(404).json({
-                success: false,
-                message: "Order not found or does not belong to you"
-            });
+            return res.status(404).json({ success: false, message: "Order not found" });
         }
 
-        // 3. Check karo ki Order ka status kya hai
-        // Agar Shipped ya Delivered hai, toh Cancel mat karne do
+        // Validation: Shipped order cancel nahi ho sakta
         if (order.orderStatus === "shipped" || order.orderStatus === "delivered") {
-            return res.status(400).json({
-                success: false,
-                message: "Order cannot be cancelled. It is already shipped or delivered."
-            });
+            return res.status(400).json({ success: false, message: "Cannot cancel order because it is already shipped/delivered." });
         }
 
-        // 4. Agar order pehle se cancelled hai
+        // Validation: Already cancelled
         if (order.orderStatus === "cancelled") {
-            return res.status(400).json({
-                success: false,
-                message: "Order is already cancelled."
-            });
+            return res.status(400).json({ success: false, message: "Order is already cancelled." });
         }
 
-        // 5. Status update karke Save karo
+        // Status change karo "cancelled"
         order.orderStatus = "cancelled";
-        await order.save();
+        order.paymentStatus = "cancelled";
+        await order.save(); // Save changes to DB
 
         res.status(200).json({
             success: true,
             message: "Order cancelled successfully",
-            order // Updated order wapas bhej diya
+            order
         });
 
     } catch (error) {
-        console.log("Error in cancelledOdder:", error.message);
-        res.status(500).json({
-            success: false,
-            message: "Server Error: Could not cancel order",
-            error: error.message
-        });
+        console.log("Error in cancelOrder:", error.message);
+        res.status(500).json({ success: false, message: "Server Error", error: error.message });
     }
 }
 
-
-export { placeOrder, getMyOrders, getAllOrdersAdmin, updateOrderStatus, cancelledOdder };
+export { 
+    placeOrder, 
+    getMyOrders, 
+    getAllOrdersAdmin, 
+    updateOrderStatus, 
+    cancelOrder // Note: Maine spelling 'cancelledOdder' se 'cancelOrder' kar di hai
+};

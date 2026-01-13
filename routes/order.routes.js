@@ -5,7 +5,7 @@ import {
     getMyOrders,
     getAllOrdersAdmin,
     updateOrderStatus,
-    cancelledOdder 
+    cancelOrder 
 } from '../controllers/orderController.js';
 
 const router = express.Router();
@@ -25,6 +25,6 @@ router.get('/admin/all-orders', verifyJwt, getAllOrdersAdmin);
 // 4. Order ka status badalne ke liye (Pending -> Shipped -> Delivered)
 router.post('/admin/update-status', verifyJwt, updateOrderStatus);
 
-router.post('/cancel/Odder' , verifyJwt , cancelledOdder )
+router.post('/cancel/Odder' , verifyJwt , cancelOrder )
 
 export default router;
