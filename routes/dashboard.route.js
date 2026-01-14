@@ -2,7 +2,7 @@ import { Router } from "express";
 import { 
     addNewProduct, 
     updateProduct,
-    updateVariantStock, // New Stock Update
+    updateVariantStock, 
     deleteProduct, 
     getAppProduct, 
     searchProduct,
@@ -10,8 +10,9 @@ import {
     updateOrderStatus,
     getDashboardStats,
     addServicesArea, 
-    updateDeliveryAvlabelStatus 
-} from "../controllers/dashboard.cantrollers.js"; // File name check kar lena (controller vs cantrollers)
+    updateDeliveryAvlabelStatus,
+    getAllServiceAreas 
+} from "../controllers/dashboard.cantrollers.js"; 
 import { upload } from "../middleware/multer.middleware.js";
 import { verifyJwt } from "../middleware/auth.jwt.js";
 
@@ -20,37 +21,29 @@ const route = Router();
 // ============================
 // PRODUCT ROUTES
 // ============================
-
-// Add New Product (Max 5 Images)
 route.post('/addNewProduct', verifyJwt, upload.array('images', 5), addNewProduct);
-
-// Update Product Details (Generic)
 route.put('/updateProduct/:id', verifyJwt, updateProduct);
-
-// Update Stock Only (Specific Variant)
-route.post('/admin/update-stock', verifyJwt, updateVariantStock);
-
-// Delete Product
-route.delete('/deleteProduct/:id', verifyJwt, deleteProduct);
-
-// Public Routes (No Login Required)
-route.get('/getAllProduct', getAppProduct);
+route.post('/admin/update-stock', verifyJwt, updateVariantStock); // Stock Update
+route.delete('/deleteProduct/:id', verifyJwt, deleteProduct); // Delete
+route.get('/getAllProduct', getAppProduct); // With Pagination & Search
 route.get('/search', searchProduct);
-
 
 // ============================
 // ADMIN ORDER ROUTES
 // ============================
-route.get('/admin/orders', verifyJwt, getAllOrdersAdmin);
-route.post('/admin/update-order-status', verifyJwt, updateOrderStatus);
-
+route.get('/admin/orders', verifyJwt, getAllOrdersAdmin); // With Pagination
+route.post('/admin/update-order-status', verifyJwt, updateOrderStatus); // Update Status
 
 // ============================
-// ANALYTICS & SETTINGS
+// ANALYTICS ROUTES
 // ============================
 route.get('/admin/stats', verifyJwt, getDashboardStats);
 
+// ============================
+// SETTINGS / PINCODE ROUTES
+// ============================
 route.post("/admin/add-pincode", verifyJwt, addServicesArea);
 route.post("/admin/updateDeliveryAvlabelStatus", verifyJwt, updateDeliveryAvlabelStatus);
+route.get("/admin/all-pincodes", verifyJwt, getAllServiceAreas); // New route to fetch list
 
 export default route;

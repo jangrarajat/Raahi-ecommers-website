@@ -15,7 +15,7 @@ const verifyJwt = async (req, res, next) => {
     next()
   } catch (error) {
     console.log("Error in verifyJwt", error.message)
-    if (error.message === "jwt expired") return res.status(500).json({ success: false, message: error.message })
+    if (error.message === "jwt expired") return res.status(401).json({ success: false, message: error.message })
     res.status(500)
       .json({
         success: false,
