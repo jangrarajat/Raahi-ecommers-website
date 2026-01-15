@@ -3,14 +3,12 @@ import Cart from "../models/cartList.model.js";
 import Product from "../models/product.model.js"; 
 
 // =============================================
-// 1. PLACE ORDER (Handles 'Buy Now' & 'Cart')
+// 1. PLACE ORDER (Handles Stock Deduction)
 // =============================================
 const placeOrder = async (req, res) => {
     try {
         const userId = req.user._id;
-        
-        // Frontend se data receive karo
-        const { addressId, paymentMethod, productId, singleQuantity } = req.body;
+        const { addressId, paymentMethod, productId, singleQuantity, size, color } = req.body;
 
         if (!addressId || !paymentMethod) {
             return res.status(400).json({ success: false, message: "Address and Payment Method required" });
@@ -18,32 +16,58 @@ const placeOrder = async (req, res) => {
 
         let orderItems = [];
         let totalAmount = 0;
-        let isBuyNow = false; // Flag to identify order type
+        let isBuyNow = false;
 
-        // --- SCENARIO A: BUY NOW (Single Product) ---
+        // --- HELPER TO CHECK & DEDUCT STOCK ---
+        const checkAndDeductStock = async (prodId, qty, pSize, pColor) => {
+            const product = await Product.findById(prodId);
+            if (!product) throw new Error(`Product not found`);
+
+            // Find specific variant
+            const variantIndex = product.variants.findIndex(
+                v => v.size === pSize && v.color === pColor
+            );
+
+            if (variantIndex === -1) {
+                // Compatibility for old products without variants
+                if (product.variants.length === 0) return product; 
+                throw new Error(`${product.name} (${pSize}/${pColor}) is unavailable.`);
+            }
+
+            if (product.variants[variantIndex].stock < qty) {
+                throw new Error(`Insufficient stock for ${product.name} (${pSize}/${pColor}). Available: ${product.variants[variantIndex].stock}`);
+            }
+
+            // Deduct Stock
+            product.variants[variantIndex].stock -= qty;
+            await product.save();
+            return product;
+        };
+
+        // --- SCENARIO A: BUY NOW ---
         if (productId) {
             isBuyNow = true;
             const quantity = singleQuantity || 1; 
+            const reqSize = size || "N/A";
+            const reqColor = color || "N/A";
 
-            // Price DB se fetch karte hain (Security ke liye)
-            const product = await Product.findById(productId);
-            if (!product) {
-                return res.status(404).json({ success: false, message: "Product not found" });
-            }
+            // Check & Deduct
+            const product = await checkAndDeductStock(productId, quantity, reqSize, reqColor);
 
             orderItems.push({
                 productId: product._id,
                 quantity: quantity,
-                price: product.price
+                price: product.price,
+                size: reqSize,
+                color: reqColor
             });
 
             totalAmount = product.price * quantity;
         } 
         
-        // --- SCENARIO B: CART CHECKOUT (Multiple Products) ---
+        // --- SCENARIO B: CART CHECKOUT ---
         else {
             const cartItems = await Cart.find({ userId }).populate("productId");
-
             if (!cartItems || cartItems.length === 0) {
                 return res.status(400).json({ success: false, message: "Cart is empty" });
             }
@@ -51,18 +75,29 @@ const placeOrder = async (req, res) => {
             for (const item of cartItems) {
                 if (!item.productId) continue;
 
-                const itemTotal = item.productId.price * item.quantity;
-                totalAmount += itemTotal;
+                const reqSize = item.size || "N/A";
+                const reqColor = item.color || "N/A";
+
+                // Check & Deduct for each item
+                try {
+                    await checkAndDeductStock(item.productId._id, item.quantity, reqSize, reqColor);
+                } catch (err) {
+                    return res.status(400).json({ success: false, message: err.message });
+                }
+
+                totalAmount += (item.productId.price * item.quantity);
 
                 orderItems.push({
                     productId: item.productId._id,
                     quantity: item.quantity,
-                    price: item.productId.price
+                    price: item.productId.price,
+                    size: reqSize, 
+                    color: reqColor
                 });
             }
         }
 
-        // --- CREATE ORDER IN DATABASE ---
+        // --- CREATE ORDER ---
         const newOrder = await Order.create({
             userId,
             items: orderItems,
@@ -73,33 +108,31 @@ const placeOrder = async (req, res) => {
             orderStatus: "pending"
         });
 
-        // Agar 'Buy Now' nahi tha (yani Cart se khareeda), tabhi Cart khali karo
         if (!isBuyNow) {
             await Cart.deleteMany({ userId });
         }
 
         res.status(201).json({
             success: true,
-            message: isBuyNow ? "Single Order Placed" : "Order Placed Successfully",
+            message: "Order Placed Successfully",
             orderId: newOrder._id
         });
 
     } catch (error) {
         console.log("Error in placeOrder:", error.message);
-        res.status(500).json({ success: false, message: "Order Failed", error: error.message });
+        res.status(500).json({ success: false, message: error.message || "Order Failed" });
     }
 };
 
 // =============================================
-// 2. GET MY ORDERS (User)
+// 2. GET MY ORDERS
 // =============================================
 const getMyOrders = async (req, res) => {
     try {
         const orders = await Order.find({ userId: req.user._id })
-            .populate("items.productId") // Product details dikhane ke liye
-            .populate("addressId")       // Address details ke liye
-            .sort({ createdAt: -1 });    // Latest order sabse upar
-            
+            .populate("items.productId")
+            .populate("addressId")
+            .sort({ createdAt: -1 });
         res.status(200).json({ success: true, orders });
     } catch (error) {
         res.status(500).json({ success: false, message: "Error fetching orders" });
@@ -107,16 +140,15 @@ const getMyOrders = async (req, res) => {
 };
 
 // =============================================
-// 3. GET ALL ORDERS (Admin/Owner)
+// 3. GET ALL ORDERS (Admin)
 // =============================================
 const getAllOrdersAdmin = async (req, res) => {
     try {
-        // Sirf Owner hi sabke orders dekh sake
         if (req.user.role !== "owner") return res.status(403).json({ message: "Access Denied" });
         
         const orders = await Order.find()
             .populate("items.productId")
-            .populate("userId", "username email") // User ka naam aur email bhi chahiye admin ko
+            .populate("userId", "username email")
             .populate("addressId")
             .sort({ createdAt: -1 });
             
@@ -127,17 +159,14 @@ const getAllOrdersAdmin = async (req, res) => {
 };
 
 // =============================================
-// 4. UPDATE ORDER STATUS (Admin/Owner)
+// 4. UPDATE ORDER STATUS (Admin)
 // =============================================
 const updateOrderStatus = async (req, res) => {
     try {
         const { orderId, status } = req.body;
-        
         if (req.user.role !== "owner") return res.status(403).json({ message: "Access Denied" });
         
-        // Status update kar rahe hain (Pending -> Shipped -> Delivered)
         const order = await Order.findByIdAndUpdate(orderId, { orderStatus: status }, { new: true });
-        
         if(!order) return res.status(404).json({ success: false, message: "Order not found" });
 
         res.status(200).json({ success: true, message: "Status Updated", order });
@@ -147,55 +176,35 @@ const updateOrderStatus = async (req, res) => {
 };
 
 // =============================================
-// 5. CANCEL ORDER (User Side - NO DELETE)
+// 5. CANCEL ORDER (User - Restock Logic Optional)
 // =============================================
 const cancelOrder = async (req, res) => {
     try {
         const userId = req.user._id;
         const { orderId } = req.body;
 
-        if (!orderId) {
-            return res.status(400).json({ success: false, message: "Order ID is required" });
-        }
-
-        // Order dhoondo (Delete nahi karna)
         const order = await Order.findOne({ _id: orderId, userId: userId });
+        if (!order) return res.status(404).json({ success: false, message: "Order not found" });
 
-        if (!order) {
-            return res.status(404).json({ success: false, message: "Order not found" });
-        }
-
-        // Validation: Shipped order cancel nahi ho sakta
         if (order.orderStatus === "shipped" || order.orderStatus === "delivered") {
-            return res.status(400).json({ success: false, message: "Cannot cancel order because it is already shipped/delivered." });
+            return res.status(400).json({ success: false, message: "Cannot cancel shipped orders." });
         }
-
-        // Validation: Already cancelled
         if (order.orderStatus === "cancelled") {
-            return res.status(400).json({ success: false, message: "Order is already cancelled." });
+            return res.status(400).json({ success: false, message: "Already cancelled." });
         }
 
-        // Status change karo "cancelled"
+        // OPTIONAL: Restore Stock Logic Here if needed
+        // For now, just marking as cancelled
+        
         order.orderStatus = "cancelled";
         order.paymentStatus = "cancelled";
-        await order.save(); // Save changes to DB
+        await order.save(); 
 
-        res.status(200).json({
-            success: true,
-            message: "Order cancelled successfully",
-            order
-        });
+        res.status(200).json({ success: true, message: "Order cancelled successfully", order });
 
     } catch (error) {
-        console.log("Error in cancelOrder:", error.message);
-        res.status(500).json({ success: false, message: "Server Error", error: error.message });
+        res.status(500).json({ success: false, message: "Server Error" });
     }
 }
 
-export { 
-    placeOrder, 
-    getMyOrders, 
-    getAllOrdersAdmin, 
-    updateOrderStatus, 
-    cancelOrder // Note: Maine spelling 'cancelledOdder' se 'cancelOrder' kar di hai
-};
+export { placeOrder, getMyOrders, getAllOrdersAdmin, updateOrderStatus, cancelOrder };

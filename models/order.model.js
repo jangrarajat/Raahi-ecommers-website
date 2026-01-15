@@ -16,7 +16,10 @@ const orderSchema = new mongoose.Schema({
                 required: true
             },
             quantity: { type: Number, required: true },
-            price: { type: Number, required: true }
+            price: { type: Number, required: true },
+            // --- NEW FIELDS ADDED ---
+            size: { type: String, default: "N/A" }, 
+            color: { type: String, default: "N/A" }
         }
     ],
 
