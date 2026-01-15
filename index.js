@@ -29,7 +29,7 @@ connectDB()  // connect data base
 
 
 app.get('/', (req, res) => {
-    res.status(200).send("hello")
+    res.status(200).send("hell")
 })
 
 app.use('/api/user', userRoute)   // user route
@@ -38,10 +38,10 @@ app.use('/api/like', likeRouter)   // like route
 app.use('/api/cart', cartRoute) // cart route
 
 app.use('/api/limited', getLimitedProduct)
-app.use('/address', addressRoute)
+app.use('/api/address', addressRoute)
 app.use("/api/order", orderRouter);
 
-
+// adding dvmd'vmdvdmv
 
 
 app.listen(process.env.PORT, () => {
