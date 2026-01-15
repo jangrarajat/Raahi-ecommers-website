@@ -24,7 +24,7 @@ app.use(cors({
     credentials: true
 }));  // config cors
 app.use(express.json())   // config json
-connectDB()  // connect data base 
+connectDB()  // connect data ba
 
 
 
