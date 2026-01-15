@@ -38,7 +38,7 @@ app.use('/api/like', likeRouter)   // like route
 app.use('/api/cart', cartRoute) // cart route
 
 app.use('/api/limited', getLimitedProduct)
-app.use('/address', addressRoute)
+app.use('/api/address', addressRoute)
 app.use("/api/order", orderRouter);
 
 
