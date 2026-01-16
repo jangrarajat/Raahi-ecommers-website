@@ -61,29 +61,59 @@ const updateProduct = async (req, res) => {
     }
 };
 
-// Update Stock Logic
+// Update Stock Logic (Smart: Updates existing OR Adds new variant)
 const updateVariantStock = async (req, res) => {
     try {
         const { productId, color, size, newStock } = req.body;
         
-        if (!productId || newStock === undefined) {
-            return res.status(400).json({ success: false, message: "Missing details" });
+        // Validation
+        if (!productId || newStock === undefined || !color || !size) {
+            return res.status(400).json({ success: false, message: "Missing details: Product ID, Color, Size and Stock are required." });
         }
 
-        // Agar variant specific hai
-        if(color && size) {
-            const product = await Product.findOneAndUpdate(
-                { _id: productId, "variants.size": size, "variants.color": color },
-                { $set: { "variants.$.stock": Number(newStock) } },
+        // 1. Koshish karein Existing Variant ko update karne ki
+        let product = await Product.findOneAndUpdate(
+            { 
+                _id: productId, 
+                "variants.size": size, 
+                "variants.color": color 
+            },
+            { 
+                $set: { "variants.$.stock": Number(newStock) } 
+            },
+            { new: true }
+        );
+
+        // 2. Agar Variant nahi mila (Product hai par ye size/color nahi hai), to Naya Bana dein
+        if (!product) {
+            // Pehle check karein product exist karta hai ya nahi
+            const productExists = await Product.findById(productId);
+            if (!productExists) {
+                return res.status(404).json({ success: false, message: "Product not found" });
+            }
+
+            // Naya Variant Push karein
+            product = await Product.findByIdAndUpdate(
+                productId,
+                { 
+                    $push: { 
+                        variants: { 
+                            color: color, 
+                            size: size, 
+                            stock: Number(newStock) 
+                        } 
+                    } 
+                },
                 { new: true }
             );
-            if (!product) return res.status(404).json({ success: false, message: "Product or Variant not found" });
-            return res.status(200).json({ success: true, message: "Stock updated", product });
-        } else {
-             return res.status(400).json({ success: false, message: "Color and Size required for variant update" });
+            
+            return res.status(200).json({ success: true, message: "New Variant Added & Stock Updated", product });
         }
 
+        return res.status(200).json({ success: true, message: "Stock updated successfully", product });
+
     } catch (error) {
+        console.error("Stock Update Error:", error);
         res.status(500).json({ success: false, message: error.message });
     }
 };
@@ -176,7 +206,8 @@ const getAllOrdersAdmin = async (req, res) => {
         
         const orders = await Order.find({})
             .populate("userId", "username email") 
-            .populate("addressId")              
+            .populate("addressId")
+            .populate("items.productId")                  
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(limit);
