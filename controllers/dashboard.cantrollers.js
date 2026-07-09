@@ -28,14 +28,12 @@ const addNewProduct = async (req, res) => {
     const { name, description, price, mrp, category, subCategory, fabric } =
       req.body;
 
-    // Validate required fields
     if (!name || !price || !category) {
       return res
         .status(400)
         .json({ success: false, message: "Please fill required fields" });
     }
 
-    // Validate each variant has images
     if (parsedVariants && parsedVariants.length > 0) {
       for (let i = 0; i < parsedVariants.length; i++) {
         const variant = parsedVariants[i];
@@ -99,6 +97,7 @@ const updateProduct = async (req, res) => {
   }
 };
 
+// --- UPDATED: Stock Update for new variant structure ---
 const updateVariantStock = async (req, res) => {
   try {
     const { productId, color, size, newStock } = req.body;
@@ -112,7 +111,7 @@ const updateVariantStock = async (req, res) => {
         });
     }
 
-    // Find the product and update the specific size stock for the variant
+    // NEW STRUCTURE: Find product with variant color and size
     let product = await Product.findOne({
       _id: productId,
       "variants.color": color,
@@ -139,7 +138,7 @@ const updateVariantStock = async (req, res) => {
         }
       );
     } else {
-      // Check if variant exists but size doesn't
+      // Check if variant exists
       const productExists = await Product.findOne({
         _id: productId,
         "variants.color": color
@@ -197,7 +196,6 @@ const deleteProduct = async (req, res) => {
         .status(404)
         .json({ success: false, message: "Product not found" });
 
-    // Delete variant images from Cloudinary
     if (product.variants && product.variants.length > 0) {
       for (const variant of product.variants) {
         if (variant.images && variant.images.length > 0) {
@@ -339,6 +337,7 @@ const updateOrderStatus = async (req, res) => {
   }
 };
 
+// --- UPDATED: Dashboard Stats with new variant structure ---
 const getDashboardStats = async (req, res) => {
   try {
     const { range } = req.query;
@@ -389,8 +388,10 @@ const getDashboardStats = async (req, res) => {
     ]);
 
     const totalRevenue = revenueData.length > 0 ? revenueData[0].total : 0;
+    
+    // UPDATED: Find low stock products with new structure
     const lowStockProducts = await Product.find({
-      "variants.sizes.stock": { $lt: 5 },
+      "variants.sizes.stock": { $lt: 5 }
     }).select("name variants");
 
     res.status(200).json({

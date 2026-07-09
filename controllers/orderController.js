@@ -3,7 +3,7 @@ import Cart from "../models/cartList.model.js";
 import Product from "../models/product.model.js";
 
 // =============================================
-// 1. PLACE ORDER (Handles Stock Deduction)
+// 1. PLACE ORDER (Handles Stock Deduction - Updated for new variant structure)
 // =============================================
 const placeOrder = async (req, res) => {
   try {
@@ -24,30 +24,54 @@ const placeOrder = async (req, res) => {
     let totalAmount = 0;
     let isBuyNow = false;
 
-    // --- HELPER TO CHECK & DEDUCT STOCK ---
+    // --- HELPER TO CHECK & DEDUCT STOCK (UPDATED FOR NEW VARIANT STRUCTURE) ---
     const checkAndDeductStock = async (prodId, qty, pSize, pColor) => {
       const product = await Product.findById(prodId);
       if (!product) throw new Error(`Product not found`);
 
-      // Find specific variant
+      // If product has no variants (old structure), handle separately
+      if (!product.variants || product.variants.length === 0) {
+        // Check if product has direct stock field
+        if (product.stock !== undefined) {
+          if (product.stock < qty) {
+            throw new Error(`Insufficient stock for ${product.name}. Available: ${product.stock}`);
+          }
+          product.stock -= qty;
+          await product.save();
+          return product;
+        }
+        throw new Error(`${product.name} has no stock information.`);
+      }
+
+      // NEW STRUCTURE: variants has color and sizes array
+      // Find variant by color
       const variantIndex = product.variants.findIndex(
-        (v) => v.size === pSize && v.color === pColor,
+        (v) => v.color === pColor
       );
 
       if (variantIndex === -1) {
-        // Compatibility for old products without variants
-        if (product.variants.length === 0) return product;
-        throw new Error(`${product.name} (${pSize}/${pColor}) is unavailable.`);
+        throw new Error(`${product.name} (Color: ${pColor}) is unavailable.`);
       }
 
-      if (product.variants[variantIndex].stock < qty) {
+      const variant = product.variants[variantIndex];
+      
+      // Find size within the variant's sizes array
+      const sizeIndex = variant.sizes.findIndex(
+        (s) => s.size === pSize
+      );
+
+      if (sizeIndex === -1) {
+        throw new Error(`${product.name} (${pColor}/${pSize}) is unavailable.`);
+      }
+
+      if (variant.sizes[sizeIndex].stock < qty) {
         throw new Error(
-          `Insufficient stock for ${product.name} (${pSize}/${pColor}). Available: ${product.variants[variantIndex].stock}`,
+          `Insufficient stock for ${product.name} (${pColor}/${pSize}). Available: ${variant.sizes[sizeIndex].stock}`
         );
       }
 
       // Deduct Stock
-      product.variants[variantIndex].stock -= qty;
+      product.variants[variantIndex].sizes[sizeIndex].stock -= qty;
       await product.save();
       return product;
     };
@@ -206,7 +230,7 @@ const updateOrderStatus = async (req, res) => {
 };
 
 // =============================================
-// 5. CANCEL ORDER (User - Restock Logic Optional)
+// 5. CANCEL ORDER (User - Restock Logic)
 // =============================================
 const cancelOrder = async (req, res) => {
   try {
@@ -230,8 +254,28 @@ const cancelOrder = async (req, res) => {
         .json({ success: false, message: "Already cancelled." });
     }
 
-    // OPTIONAL: Restore Stock Logic Here if needed
-    // For now, just marking as cancelled
+    // Restore stock when order is cancelled
+    try {
+      for (const item of order.items) {
+        const product = await Product.findById(item.productId);
+        if (product && product.variants && product.variants.length > 0) {
+          const variantIndex = product.variants.findIndex(
+            (v) => v.color === item.color
+          );
+          if (variantIndex !== -1) {
+            const sizeIndex = product.variants[variantIndex].sizes.findIndex(
+              (s) => s.size === item.size
+            );
+            if (sizeIndex !== -1) {
+              product.variants[variantIndex].sizes[sizeIndex].stock += item.quantity;
+              await product.save();
+            }
+          }
+        }
+      }
+    } catch (stockError) {
+      console.log("Error restoring stock:", stockError.message);
+    }
 
     order.orderStatus = "cancelled";
     order.paymentStatus = "cancelled";
