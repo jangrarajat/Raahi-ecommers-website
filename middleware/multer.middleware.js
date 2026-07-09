@@ -1,68 +1,148 @@
 import multer from "multer";
+import { v2 as cloudinary } from "cloudinary";
+import fs from "fs";
+import path from "path";
+import sharp from "sharp";
+
+// ===================== CLOUDINARY CONFIG =====================
+cloudinary.config({ 
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME, 
+    api_key: process.env.CLOUDINARY_API_KEY, 
+    api_secret: process.env.CLOUDINARY_API_SECRET 
+});
+
+// ===================== MULTER CONFIG =====================
+const tempDir = "./public/temp";
+if (!fs.existsSync(tempDir)) {
+    fs.mkdirSync(tempDir, { recursive: true });
+}
 
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        // Zaroori: Project ke root folder mein 'public' aur uske andar 'temp' folder banayein
-        cb(null, "./public/temp"); 
+        cb(null, tempDir);
     },
     filename: function (req, file, cb) {
-        // File ka naam unique rakhne ke liye time aur random number jodte hain
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, file.fieldname + '-' + uniqueSuffix + '-' + file.originalname);
+        const ext = path.extname(file.originalname);
+        const baseName = path.basename(file.originalname, ext);
+        cb(null, baseName + '-' + uniqueSuffix + ext);
     }
 });
+
+const fileFilter = (req, file, cb) => {
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/jpg'];
+    if (allowedTypes.includes(file.mimetype)) {
+        cb(null, true);
+    } else {
+        cb(new Error('Only image files are allowed'), false);
+    }
+};
 
 export const upload = multer({ 
     storage: storage,
-    limits: { fileSize: 20 * 1024 * 1024 } // Max size: 5MB per file
+    limits: { fileSize: 20 * 1024 * 1024 }, 
+    fileFilter: fileFilter
 });
 
+// ===================== IMAGE OPTIMIZATION LOGIC =====================
+const optimizeImage = async (filePath) => {
+    let currentPath = filePath;
+    let attempts = 0;
+    const MAX_ATTEMPTS = 3;
+    const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
 
+    while (attempts < MAX_ATTEMPTS) {
+        const stats = fs.statSync(currentPath);
+        
+        if (stats.size <= MAX_SIZE_BYTES) {
+            return currentPath;
+        }
 
-import { v2 as cloudinary } from "cloudinary";
-import fs from "fs"; // Node.js File System
+        attempts++;
+        console.log(`📉 Compression Attempt ${attempts} for: ${path.basename(currentPath)}`);
 
-// Cloudinary Config (Make sure .env mein ye values hon)
-cloudinary.config({ 
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME, 
-  api_key: process.env.CLOUDINARY_API_KEY, 
-  api_secret: process.env.CLOUDINARY_API_SECRET 
-});
+        const compressedPath = currentPath.replace(/(\.[\w\d_-]+)$/i, `_comp_${attempts}.webp`);
+        
+        // Har attempt mein quality aur resolution kam karte jao
+        const quality = 80 - (attempts * 20); 
+        const width = 1500 - (attempts * 300);
 
-const uploadOnCloudinary = async (localFilePath) => {
+        try {
+            await sharp(currentPath)
+                .resize({ width: width, withoutEnlargement: true })
+                .webp({ quality: quality })
+                .toFile(compressedPath);
+
+            // Purani temporary file delete karein
+            if (currentPath !== filePath) {
+                fs.unlinkSync(currentPath);
+            }
+
+            currentPath = compressedPath;
+        } catch (error) {
+            throw new Error("Optimization failed: " + error.message);
+        }
+    }
+
+    // Check final result after 3 attempts
+    const finalStats = fs.statSync(currentPath);
+    if (finalStats.size > MAX_SIZE_BYTES) {
+        if (fs.existsSync(currentPath)) fs.unlinkSync(currentPath);
+        throw new Error("Image could not be compressed under 5MB after 3 attempts.");
+    }
+
+    return currentPath;
+};
+
+// ===================== CLOUDINARY FUNCTIONS =====================
+
+export const uploadOnCloudinary = async (localFilePath, folder = "raahi_products") => {
     try {
-        if (!localFilePath) return null;
+        if (!localFilePath || !fs.existsSync(localFilePath)) return null;
 
-        // 1. Upload file on Cloudinary
-        const response = await cloudinary.uploader.upload(localFilePath, {
+        // Optimization process
+        const finalFilePath = await optimizeImage(localFilePath);
+
+        const response = await cloudinary.uploader.upload(finalFilePath, {
             resource_type: "auto",
-            folder: "raahi_products" // Cloudinary folder name
+            folder: folder
         });
 
-        // 2. Upload success -> Delete local file
-        if(fs.existsSync(localFilePath)){
-            fs.unlinkSync(localFilePath);
-        }
-        
+        // Cleanup
+        if (fs.existsSync(finalFilePath)) fs.unlinkSync(finalFilePath);
+
         return response;
-
     } catch (error) {
-        // Upload Fail -> Delete local file to keep server clean
-        if(fs.existsSync(localFilePath)){
-            fs.unlinkSync(localFilePath);
-        }
-        return null;
+        console.error("❌ Cloudinary Upload Error:", error.message);
+        if (localFilePath && fs.existsSync(localFilePath)) fs.unlinkSync(localFilePath);
+        throw error; // Controller mein error catch karne ke liye throw karein
     }
 };
 
-// Image Delete karne ke liye (Jab product delete ho)
-const deleteFromCloudinary = async (public_id) => {
+export const uploadMultipleOnCloudinary = async (localFilePaths, folder = "raahi_products") => {
+    const uploadPromises = localFilePaths.map(filePath => uploadOnCloudinary(filePath, folder));
+    return await Promise.all(uploadPromises);
+};
+
+export const deleteFromCloudinary = async (publicId) => {
     try {
-        if (!public_id) return null;
-        await cloudinary.uploader.destroy(public_id);
+        const result = await cloudinary.uploader.destroy(publicId);
+        return result.result === 'ok';
     } catch (error) {
-        console.log("Error deleting from Cloudinary", error);
+        return false;
     }
 };
 
-export { uploadOnCloudinary, deleteFromCloudinary };
+export const deleteMultipleFromCloudinary = async (publicIds) => {
+    const promises = publicIds.map(id => deleteFromCloudinary(id));
+    return await Promise.all(promises);
+};
+
+export const getPublicIdFromUrl = (url) => {
+    if (!url) return null;
+    const parts = url.split('/');
+    const fileName = parts[parts.length - 1];
+    return fileName.split('.')[0];
+};
+
+export { cloudinary };
