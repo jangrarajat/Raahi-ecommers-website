@@ -1,9 +1,8 @@
 import Product from "../models/product.model.js";
 import Order from "../models/order.model.js";
 import User from "../models/user.model.js";
-import ServiceArea from "../models/serviceArea.model.js"; // Ensure model exists
+import ServiceArea from "../models/serviceArea.model.js";
 import {
-  uploadOnCloudinary,
   deleteFromCloudinary,
 } from "../middleware/multer.middleware.js";
 
@@ -13,6 +12,7 @@ import {
 
 const addNewProduct = async (req, res) => {
   console.log("Add Product Request Body:", req.body);
+  
   try {
     let parsedVariants = [];
     if (req.body.variants) {
@@ -27,69 +27,53 @@ const addNewProduct = async (req, res) => {
 
     const { name, description, price, mrp, category, subCategory, fabric } =
       req.body;
-    console.log("Product Request Body:", req.body);
-    let imageArray = [];
 
-    if (req.files && req.files.length > 0) {
-        console.log("Files received:", req.files.map(file => file.originalname));
-      const uploadPromises = req.files.map(async (file) => {
-        const result = await uploadOnCloudinary(file.path);
-        console.log("Cloudinary Upload Result:", result);
-        if (result)
-            console.log("Uploaded Image:", result.secure_url);
-          return { public_id: result.public_id, url: result.secure_url };
-      });
-      const uploadedImages = await Promise.all(uploadPromises);
-      imageArray = uploadedImages.filter((img) => img !== undefined);
-      console.log("Final Image Array:", imageArray);
-    }
-    console.log("Parsed Variants:", parsedVariants);
+    // Validate required fields
     if (!name || !price || !category) {
       return res
         .status(400)
         .json({ success: false, message: "Please fill required fields" });
     }
 
-   console.log("Creating new product with data:", {
-      name,
-      description,
-      price,
-      mrp,
-      category,
-      subCategory,
-      fabric,
-      images: imageArray,
-      variants: parsedVariants,
-    });
+    // Validate each variant has images
+    if (parsedVariants && parsedVariants.length > 0) {
+      for (let i = 0; i < parsedVariants.length; i++) {
+        const variant = parsedVariants[i];
+        if (!variant.images || variant.images.length === 0) {
+          return res.status(400).json({
+            success: false,
+            message: `Variant ${i + 1} (${variant.color || 'Color'}) must have at least one image`
+          });
+        }
+      }
+    }
+
     const newProduct = await Product.create({
       name,
       description,
-      price,
-      mrp,
+      price: Number(price),
+      mrp: Number(mrp || 0),
       category,
       subCategory,
       fabric,
-      images: imageArray,
       variants: parsedVariants,
     });
 
-    
-  console.log("New Product Created:", newProduct);
-    res
-      .status(201)
-      .json({
-        success: true,
-        message: "Product added successfully",
-        product: newProduct,
-      });
+    console.log("✅ New Product Created:", newProduct._id);
 
-      console.log("Product added successfully:", newProduct);
+    res.status(201).json({
+      success: true,
+      message: "Product added successfully",
+      product: newProduct,
+    });
+
   } catch (error) {
-    console.error("Add Product Error:", error);
-    res.status(500).json({ success: false, message: error.message });
+    console.error("❌ Add Product Error:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message || "Failed to add product. Please try again." 
+    });
   }
-
-  console.log("Add Product Request Completed");
 };
 
 const updateProduct = async (req, res) => {
@@ -115,74 +99,91 @@ const updateProduct = async (req, res) => {
   }
 };
 
-// Update Stock Logic (Smart: Updates existing OR Adds new variant)
 const updateVariantStock = async (req, res) => {
   try {
     const { productId, color, size, newStock } = req.body;
 
-    // Validation
     if (!productId || newStock === undefined || !color || !size) {
       return res
         .status(400)
         .json({
           success: false,
-          message:
-            "Missing details: Product ID, Color, Size and Stock are required.",
+          message: "Missing details: Product ID, Color, Size and Stock are required.",
         });
     }
 
-    // 1. Koshish karein Existing Variant ko update karne ki
-    let product = await Product.findOneAndUpdate(
-      {
-        _id: productId,
-        "variants.size": size,
-        "variants.color": color,
-      },
-      {
-        $set: { "variants.$.stock": Number(newStock) },
-      },
-      { new: true },
-    );
+    // Find the product and update the specific size stock for the variant
+    let product = await Product.findOne({
+      _id: productId,
+      "variants.color": color,
+      "variants.sizes.size": size
+    });
 
-    // 2. Agar Variant nahi mila (Product hai par ye size/color nahi hai), to Naya Bana dein
-    if (!product) {
-      // Pehle check karein product exist karta hai ya nahi
-      const productExists = await Product.findById(productId);
-      if (!productExists) {
-        return res
-          .status(404)
-          .json({ success: false, message: "Product not found" });
-      }
-
-      // Naya Variant Push karein
-      product = await Product.findByIdAndUpdate(
-        productId,
+    if (product) {
+      // Update existing size stock
+      product = await Product.findOneAndUpdate(
         {
-          $push: {
-            variants: {
-              color: color,
-              size: size,
-              stock: Number(newStock),
-            },
-          },
+          _id: productId,
+          "variants.color": color,
+          "variants.sizes.size": size
         },
-        { new: true },
+        {
+          $set: { "variants.$[variant].sizes.$[sizeElem].stock": Number(newStock) }
+        },
+        {
+          arrayFilters: [
+            { "variant.color": color },
+            { "sizeElem.size": size }
+          ],
+          new: true
+        }
       );
+    } else {
+      // Check if variant exists but size doesn't
+      const productExists = await Product.findOne({
+        _id: productId,
+        "variants.color": color
+      });
 
-      return res
-        .status(200)
-        .json({
-          success: true,
-          message: "New Variant Added & Stock Updated",
-          product,
-        });
+      if (productExists) {
+        // Add new size to existing variant
+        product = await Product.findOneAndUpdate(
+          {
+            _id: productId,
+            "variants.color": color
+          },
+          {
+            $push: { "variants.$.sizes": { size: size, stock: Number(newStock) } }
+          },
+          { new: true }
+        );
+      } else {
+        // Create new variant with size
+        product = await Product.findByIdAndUpdate(
+          productId,
+          {
+            $push: {
+              variants: {
+                color: color,
+                sizes: [{ size: size, stock: Number(newStock) }],
+                images: []
+              }
+            }
+          },
+          { new: true }
+        );
+      }
+    }
+
+    if (!product) {
+      return res.status(404).json({ success: false, message: "Product not found" });
     }
 
     return res
       .status(200)
       .json({ success: true, message: "Stock updated successfully", product });
   } catch (error) {
-    console.error("Stock Update Error:", error);
+    console.error("❌ Stock Update Error:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -196,23 +197,29 @@ const deleteProduct = async (req, res) => {
         .status(404)
         .json({ success: false, message: "Product not found" });
 
-    // Delete images from Cloudinary
-    if (product.images && product.images.length > 0) {
-      const deletePromises = product.images.map((img) =>
-        deleteFromCloudinary(img.public_id),
-      );
-      await Promise.all(deletePromises);
+    // Delete variant images from Cloudinary
+    if (product.variants && product.variants.length > 0) {
+      for (const variant of product.variants) {
+        if (variant.images && variant.images.length > 0) {
+          const deletePromises = variant.images.map((img) =>
+            deleteFromCloudinary(img.public_id)
+          );
+          await Promise.all(deletePromises);
+          console.log(`🗑️ Deleted ${variant.images.length} images for variant ${variant.color}`);
+        }
+      }
     }
+
     await Product.findByIdAndDelete(id);
     res
       .status(200)
       .json({ success: true, message: "Product Deleted Successfully" });
   } catch (error) {
+    console.error("❌ Delete Product Error:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// Pagination (50 items per page) & Search
 const getAppProduct = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -223,7 +230,6 @@ const getAppProduct = async (req, res) => {
     let filter = {};
     if (category && category !== "all") filter.category = category;
 
-    // Search Logic
     if (search) {
       const searchRegex = new RegExp(search, "i");
       filter.$or = [
@@ -248,12 +254,12 @@ const getAppProduct = async (req, res) => {
       totalProducts,
     });
   } catch (error) {
+    console.error("❌ Get Products Error:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
 
 const searchProduct = async (req, res) => {
-  // Ye separate search route hai agar quick search chahiye ho
   try {
     let { query } = req.query;
     if (!query)
@@ -267,6 +273,7 @@ const searchProduct = async (req, res) => {
     }).limit(20);
     res.status(200).json({ success: true, count: products.length, products });
   } catch (error) {
+    console.error("❌ Search Error:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
@@ -299,7 +306,7 @@ const getAllOrdersAdmin = async (req, res) => {
       totalOrders,
     });
   } catch (error) {
-    console.log(error);
+    console.log("❌ Get Orders Error:", error);
     res.status(500).json({ success: false, message: "Error fetching orders" });
   }
 };
@@ -320,8 +327,6 @@ const updateOrderStatus = async (req, res) => {
       order.paymentStatus = "paid";
     } else if (status === "cancelled") {
       order.paymentStatus = "cancelled";
-    } else if (status === "confirmed") {
-      // Optional: Logic for confirmed
     }
 
     await order.save();
@@ -373,22 +378,19 @@ const getDashboardStats = async (req, res) => {
       Order.countDocuments({ ...dateFilter, orderStatus: "pending" }),
       Order.countDocuments({ ...dateFilter, orderStatus: "cancelled" }),
       User.countDocuments({ ...dateFilter, role: "user" }),
-
       Order.aggregate([
         { $match: { ...dateFilter, orderStatus: "delivered" } },
         { $group: { _id: null, total: { $sum: "$totalAmount" } } },
       ]),
-
       Order.countDocuments({
         createdAt: { $gte: new Date(new Date().setHours(0, 0, 0, 0)) },
       }),
-
       Product.countDocuments(),
     ]);
 
     const totalRevenue = revenueData.length > 0 ? revenueData[0].total : 0;
     const lowStockProducts = await Product.find({
-      "variants.stock": { $lt: 5 },
+      "variants.sizes.stock": { $lt: 5 },
     }).select("name variants");
 
     res.status(200).json({
@@ -408,7 +410,7 @@ const getDashboardStats = async (req, res) => {
       lowStockProducts,
     });
   } catch (error) {
-    console.log(error);
+    console.log("❌ Stats Error:", error);
     res.status(500).json({ success: false, message: "Error fetching stats" });
   }
 };

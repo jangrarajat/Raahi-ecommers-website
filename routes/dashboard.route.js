@@ -13,7 +13,6 @@ import {
     updateDeliveryAvlabelStatus,
     getAllServiceAreas 
 } from "../controllers/dashboard.cantrollers.js"; 
-import { upload } from "../middleware/multer.middleware.js";
 import { verifyJwt } from "../middleware/auth.jwt.js";
 
 const route = Router();
@@ -21,18 +20,19 @@ const route = Router();
 // ============================
 // PRODUCT ROUTES
 // ============================
-route.post('/addNewProduct', verifyJwt, upload.array('images', 5), addNewProduct);
+// Now using JSON instead of multipart since images are uploaded separately
+route.post('/addNewProduct', verifyJwt, addNewProduct);
 route.put('/updateProduct/:id', verifyJwt, updateProduct);
-route.post('/admin/update-stock', verifyJwt, updateVariantStock); // Stock Update
-route.delete('/deleteProduct/:id', verifyJwt, deleteProduct); // Delete
-route.get('/getAllProduct', getAppProduct); // With Pagination & Search
+route.post('/admin/update-stock', verifyJwt, updateVariantStock);
+route.delete('/deleteProduct/:id', verifyJwt, deleteProduct);
+route.get('/getAllProduct', getAppProduct);
 route.get('/search', searchProduct);
 
 // ============================
 // ADMIN ORDER ROUTES
 // ============================
-route.get('/admin/orders', verifyJwt, getAllOrdersAdmin); // With Pagination
-route.post('/admin/update-order-status', verifyJwt, updateOrderStatus); // Update Status
+route.get('/admin/orders', verifyJwt, getAllOrdersAdmin);
+route.post('/admin/update-order-status', verifyJwt, updateOrderStatus);
 
 // ============================
 // ANALYTICS ROUTES
@@ -44,6 +44,6 @@ route.get('/admin/stats', verifyJwt, getDashboardStats);
 // ============================
 route.post("/admin/add-pincode", verifyJwt, addServicesArea);
 route.post("/admin/updateDeliveryAvlabelStatus", verifyJwt, updateDeliveryAvlabelStatus);
-route.get("/admin/all-pincodes", verifyJwt, getAllServiceAreas); // New route to fetch list
+route.get("/admin/all-pincodes", verifyJwt, getAllServiceAreas);
 
 export default route;

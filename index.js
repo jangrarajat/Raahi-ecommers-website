@@ -10,7 +10,7 @@ import addressRoute from './routes/address.route.js'
 import orderRouter from './routes/order.routes.js'
 import cors from 'cors'
 import cookieParser from "cookie-parser";
-
+import uploadImageRoute from './routes/uploadImage.route.js';
 const app = express();
 
 
@@ -40,6 +40,7 @@ app.use('/api/cart', cartRoute) // cart route
 app.use('/api/limited', getLimitedProduct)
 app.use('/api/address', addressRoute)
 app.use("/api/order", orderRouter);
+app.use('/api/upload', uploadImageRoute) // upload image route; 
 
 // adding dvmd'vmdvdmv
 
