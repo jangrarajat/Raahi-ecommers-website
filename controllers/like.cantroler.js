@@ -1,85 +1,157 @@
 import Like from "../models/likeList.model.js";
+import Product from "../models/product.model.js";
 
-const handleLikeProduct = async (req, res) => {
+// --- HELPER: Get variant image URL ---
+const getVariantImage = (product, color, size) => {
     try {
-        if (!req.body) return res.status(400).json({ success: false, message: "productId id requried" })
-        const { productId } = req.body
-
-        const findLikedProdcut = await Like.findOne({ productId: productId, userId: req.user._id })
-        if (findLikedProdcut) return res.status(400).json({ success: false, message: "Allready liked " })
-
-        const likedProdcut = await Like.create({
-            productId: productId,
-            userId: req.user._id
-        })
-
-        if (!likedProdcut) return res.status(500).json({ success: false, message: "Like product server error" })
-
-
-        res.status(200)
-            .json({
-                success: true,
-                message: "Like Successfully"
-            })
+        const variant = product.variants?.find(v => v.color === color);
+        if (variant?.images?.length > 0) {
+            const img = variant.images[0];
+            if (typeof img === 'object') {
+                return (img.url || img.secure_url || "").replace("http://", "https://");
+            }
+            if (typeof img === 'string') {
+                return img.replace("http://", "https://");
+            }
+        }
+        // Fallback to product image
+        if (product.images?.length > 0) {
+            const img = product.images[0];
+            if (typeof img === 'object') {
+                return (img.url || img.secure_url || "").replace("http://", "https://");
+            }
+            if (typeof img === 'string') {
+                return img.replace("http://", "https://");
+            }
+        }
+        return "https://via.placeholder.com/300?text=No+Image";
     } catch (error) {
-        console.log("Error in handleLikeProduct", error.message)
-        res.status(500)
-            .json({
-                success: false,
-                message: "Failed Like ",
-                error: error.message
-            })
+        return "https://via.placeholder.com/300?text=Error";
     }
 };
 
-const handleDisLikeProduct = async (req, res) => {
-    try {
-        if (!req.body) return res.status(400).json({ success: false, message: "productId id requried" })
-        const { productId } = req.body
-        const findLikedProdcut = await Like.findOne({ productId: productId, userId: req.user._id })
-        if (!findLikedProdcut) return res.status(400).json({ success: false, message: "Not like this product " })
-        const disLikeProduct = await Like.findOneAndDelete({ productId: productId, userId: req.user._id })
-        if (!disLikeProduct) return res.status(500).json({ success: false, message: "DisLike Product Failed Server error" })
-
-        res.status(200)
-            .json({
-                success: true,
-                message: "DisLike Successfully"
-            })
-    } catch (error) {
-        console.log("Error in handleDisLikeProduct", error.message)
-        res.status(500)
-            .json({
-                success: false,
-                message: "Failed DisLike ",
-                error: error.message
-            })
-    }
-}
-
-
-const getLikeList = async (req, res) => {
+// --- LIKE A PRODUCT VARIANT ---
+export const handleLikeProduct = async (req, res) => {
     try {
         const userId = req.user._id;
-        if (!userId) return res.status(400).json({ success: false, message: "userId is reqried " })
-        const likeList = await Like.find({ userId }).populate("productId")
-        if (!likeList) return res.status(400).json({ success: false, message: "Nothing like any product" })
+        const { productId, color, size } = req.body;
 
-        res.status(200)
-            .json({
-                success: true,
-                message: "Get Like List successfully",
-                likeList
-            })
+        // Validate required fields
+        if (!productId || !color || !size) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "ProductId, color, and size are required" 
+            });
+        }
+
+        // Validate product exists
+        const product = await Product.findById(productId);
+        if (!product) {
+            return res.status(404).json({ success: false, message: "Product not found" });
+        }
+
+        // Validate variant exists
+        const variant = product.variants.find(v => v.color === color);
+        if (!variant) {
+            return res.status(400).json({ success: false, message: "Invalid color" });
+        }
+        const sizeObj = variant.sizes.find(s => s.size === size);
+        if (!sizeObj) {
+            return res.status(400).json({ success: false, message: "Invalid size" });
+        }
+
+        // Check if already liked
+        const existingLike = await Like.findOne({
+            userId,
+            productId,
+            color,
+            size
+        });
+
+        if (existingLike) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Already liked this variant" 
+            });
+        }
+
+        // Get variant image
+        const variantImage = getVariantImage(product, color, size);
+
+        const newLike = new Like({
+            userId,
+            productId,
+            color,
+            size,
+            variantImage
+        });
+
+        await newLike.save();
+        const populated = await Like.findById(newLike._id).populate('productId');
+
+        res.status(201).json({
+            success: true,
+            message: "Product variant liked",
+            like: populated
+        });
+
     } catch (error) {
-        console.log("Error in getLikeList", error.message)
-        res.status(500)
-            .json({
-                success: false,
-                message: "Failed get Like list ",
-                error: error.message
-            })
+        console.error("Error in handleLikeProduct:", error);
+        res.status(500).json({ success: false, message: error.message });
     }
-}
+};
 
-export { handleLikeProduct, handleDisLikeProduct, getLikeList };
+// --- DISLIKE A PRODUCT VARIANT ---
+export const handleDisLikeProduct = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const { productId, color, size } = req.body;
+
+        if (!productId || !color || !size) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "ProductId, color, and size are required" 
+            });
+        }
+
+        const deletedLike = await Like.findOneAndDelete({
+            userId,
+            productId,
+            color,
+            size
+        });
+
+        if (!deletedLike) {
+            return res.status(404).json({ 
+                success: false, 
+                message: "Like not found for this variant" 
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Product variant unliked"
+        });
+
+    } catch (error) {
+        console.error("Error in handleDisLikeProduct:", error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// --- GET LIKE LIST ---
+export const getLikeList = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const likeList = await Like.find({ userId }).populate('productId');
+
+        res.status(200).json({
+            success: true,
+            likeList
+        });
+
+    } catch (error) {
+        console.error("Error in getLikeList:", error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};

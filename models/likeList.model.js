@@ -1,6 +1,4 @@
 import { Schema, mongoose } from 'mongoose'
-import Product from './product.model.js'
-import User from './user.model.js'
 
 const likeSchema = new Schema({
     productId: {
@@ -13,9 +11,27 @@ const likeSchema = new Schema({
         ref: "User",
         required: true
     },
+    // --- VARIANT FIELDS ---
+    color: {
+        type: String,
+        required: true,
+        default: null
+    },
+    size: {
+        type: String,
+        required: true,
+        default: null
+    },
+    // ✅ NEW: Store variant image URL
+    variantImage: {
+        type: String,
+        default: null
+    }
 
 }, { timestamps: true })
 
-const Like = mongoose.model("Like", likeSchema)
+// UNIQUE INDEX: Same user, same product, same variant = ek hi like
+likeSchema.index({ userId: 1, productId: 1, color: 1, size: 1 }, { unique: true })
 
+const Like = mongoose.model("Like", likeSchema)
 export default Like
