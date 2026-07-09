@@ -30,17 +30,17 @@ const getVariantImage = (product, color, size) => {
     }
 };
 
-// --- LIKE A PRODUCT VARIANT ---
+// --- ✅ LIKE A PRODUCT (Supports both variant and non-variant) ---
 export const handleLikeProduct = async (req, res) => {
     try {
         const userId = req.user._id;
         const { productId, color, size } = req.body;
 
-        // Validate required fields
-        if (!productId || !color || !size) {
+        // ✅ Only productId is required
+        if (!productId) {
             return res.status(400).json({ 
                 success: false, 
-                message: "ProductId, color, and size are required" 
+                message: "ProductId is required" 
             });
         }
 
@@ -50,22 +50,24 @@ export const handleLikeProduct = async (req, res) => {
             return res.status(404).json({ success: false, message: "Product not found" });
         }
 
-        // Validate variant exists
-        const variant = product.variants.find(v => v.color === color);
-        if (!variant) {
-            return res.status(400).json({ success: false, message: "Invalid color" });
-        }
-        const sizeObj = variant.sizes.find(s => s.size === size);
-        if (!sizeObj) {
-            return res.status(400).json({ success: false, message: "Invalid size" });
+        // ✅ If color and size are provided, validate them
+        if (color && size) {
+            const variant = product.variants.find(v => v.color === color);
+            if (!variant) {
+                return res.status(400).json({ success: false, message: "Invalid color" });
+            }
+            const sizeObj = variant.sizes.find(s => s.size === size);
+            if (!sizeObj) {
+                return res.status(400).json({ success: false, message: "Invalid size" });
+            }
         }
 
-        // Check if already liked
+        // ✅ Check if already liked (handle null values)
         const existingLike = await Like.findOne({
             userId,
             productId,
-            color,
-            size
+            color: color || null,
+            size: size || null
         });
 
         if (existingLike) {
@@ -75,14 +77,14 @@ export const handleLikeProduct = async (req, res) => {
             });
         }
 
-        // Get variant image
-        const variantImage = getVariantImage(product, color, size);
+        // Get variant image (if color provided, else null)
+        const variantImage = color ? getVariantImage(product, color, size) : null;
 
         const newLike = new Like({
             userId,
             productId,
-            color,
-            size,
+            color: color || null,
+            size: size || null,
             variantImage
         });
 
@@ -91,7 +93,7 @@ export const handleLikeProduct = async (req, res) => {
 
         res.status(201).json({
             success: true,
-            message: "Product variant liked",
+            message: "Product liked",
             like: populated
         });
 
@@ -101,36 +103,38 @@ export const handleLikeProduct = async (req, res) => {
     }
 };
 
-// --- DISLIKE A PRODUCT VARIANT ---
+// --- ✅ DISLIKE A PRODUCT (Supports both variant and non-variant) ---
 export const handleDisLikeProduct = async (req, res) => {
     try {
         const userId = req.user._id;
         const { productId, color, size } = req.body;
 
-        if (!productId || !color || !size) {
+        // ✅ Only productId is required
+        if (!productId) {
             return res.status(400).json({ 
                 success: false, 
-                message: "ProductId, color, and size are required" 
+                message: "ProductId is required" 
             });
         }
 
+        // ✅ Handle null values properly
         const deletedLike = await Like.findOneAndDelete({
             userId,
             productId,
-            color,
-            size
+            color: color || null,
+            size: size || null
         });
 
         if (!deletedLike) {
             return res.status(404).json({ 
                 success: false, 
-                message: "Like not found for this variant" 
+                message: "Like not found" 
             });
         }
 
         res.status(200).json({
             success: true,
-            message: "Product variant unliked"
+            message: "Product unliked"
         });
 
     } catch (error) {

@@ -11,18 +11,16 @@ const likeSchema = new Schema({
         ref: "User",
         required: true
     },
-    // --- VARIANT FIELDS ---
+    // --- VARIANT FIELDS (Allow null) ---
     color: {
         type: String,
-        required: true,
         default: null
     },
     size: {
         type: String,
-        required: true,
         default: null
     },
-    // ✅ NEW: Store variant image URL
+    // Store variant image URL
     variantImage: {
         type: String,
         default: null
@@ -31,7 +29,16 @@ const likeSchema = new Schema({
 }, { timestamps: true })
 
 // UNIQUE INDEX: Same user, same product, same variant = ek hi like
-likeSchema.index({ userId: 1, productId: 1, color: 1, size: 1 }, { unique: true })
+// ✅ Handle null values in index
+likeSchema.index({ 
+    userId: 1, 
+    productId: 1, 
+    color: 1, 
+    size: 1 
+}, { 
+    unique: true,
+    partialFilterExpression: { color: { $type: "string" }, size: { $type: "string" } }
+})
 
 const Like = mongoose.model("Like", likeSchema)
 export default Like
