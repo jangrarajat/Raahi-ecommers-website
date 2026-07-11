@@ -11,12 +11,8 @@ const likeSchema = new Schema({
         ref: "User",
         required: true
     },
-    // --- VARIANT FIELDS (Allow null) ---
+    // ✅ ONLY COLOR - Size remove kar diya
     color: {
-        type: String,
-        default: null
-    },
-    size: {
         type: String,
         default: null
     },
@@ -28,16 +24,13 @@ const likeSchema = new Schema({
 
 }, { timestamps: true })
 
-// UNIQUE INDEX: Same user, same product, same variant = ek hi like
-// ✅ Handle null values in index
+// ✅ Unique: userId + productId + color (size nahi)
 likeSchema.index({ 
     userId: 1, 
     productId: 1, 
-    color: 1, 
-    size: 1 
+    color: 1 
 }, { 
-    unique: true,
-    partialFilterExpression: { color: { $type: "string" }, size: { $type: "string" } }
+    unique: true 
 })
 
 const Like = mongoose.model("Like", likeSchema)

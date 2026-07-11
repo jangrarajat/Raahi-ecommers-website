@@ -1,8 +1,8 @@
 import Like from "../models/likeList.model.js";
 import Product from "../models/product.model.js";
 
-// --- HELPER: Get variant image URL ---
-const getVariantImage = (product, color, size) => {
+// --- HELPER: Get variant image URL (only color) ---
+const getVariantImage = (product, color) => {
     try {
         const variant = product.variants?.find(v => v.color === color);
         if (variant?.images?.length > 0) {
@@ -14,7 +14,6 @@ const getVariantImage = (product, color, size) => {
                 return img.replace("http://", "https://");
             }
         }
-        // Fallback to product image
         if (product.images?.length > 0) {
             const img = product.images[0];
             if (typeof img === 'object') {
@@ -30,13 +29,12 @@ const getVariantImage = (product, color, size) => {
     }
 };
 
-// --- ✅ LIKE A PRODUCT (Supports both variant and non-variant) ---
+// --- ✅ LIKE - ONLY COLOR (size ignore) ---
 export const handleLikeProduct = async (req, res) => {
     try {
         const userId = req.user._id;
-        const { productId, color, size } = req.body;
+        const { productId, color } = req.body;
 
-        // ✅ Only productId is required
         if (!productId) {
             return res.status(400).json({ 
                 success: false, 
@@ -44,47 +42,39 @@ export const handleLikeProduct = async (req, res) => {
             });
         }
 
-        // Validate product exists
         const product = await Product.findById(productId);
         if (!product) {
             return res.status(404).json({ success: false, message: "Product not found" });
         }
 
-        // ✅ If color and size are provided, validate them
-        if (color && size) {
+        // ✅ Validate color if provided
+        if (color) {
             const variant = product.variants.find(v => v.color === color);
             if (!variant) {
                 return res.status(400).json({ success: false, message: "Invalid color" });
             }
-            const sizeObj = variant.sizes.find(s => s.size === size);
-            if (!sizeObj) {
-                return res.status(400).json({ success: false, message: "Invalid size" });
-            }
         }
 
-        // ✅ Check if already liked (handle null values)
+        // ✅ Check if already liked (only productId + color)
         const existingLike = await Like.findOne({
             userId,
             productId,
-            color: color || null,
-            size: size || null
+            color: color || null
         });
 
         if (existingLike) {
             return res.status(400).json({ 
                 success: false, 
-                message: "Already liked this variant" 
+                message: "Already liked this color" 
             });
         }
 
-        // Get variant image (if color provided, else null)
-        const variantImage = color ? getVariantImage(product, color, size) : null;
+        const variantImage = color ? getVariantImage(product, color) : null;
 
         const newLike = new Like({
             userId,
             productId,
             color: color || null,
-            size: size || null,
             variantImage
         });
 
@@ -103,13 +93,12 @@ export const handleLikeProduct = async (req, res) => {
     }
 };
 
-// --- ✅ DISLIKE A PRODUCT (Supports both variant and non-variant) ---
+// --- ✅ DISLIKE - ONLY COLOR (size ignore) ---
 export const handleDisLikeProduct = async (req, res) => {
     try {
         const userId = req.user._id;
-        const { productId, color, size } = req.body;
+        const { productId, color } = req.body;
 
-        // ✅ Only productId is required
         if (!productId) {
             return res.status(400).json({ 
                 success: false, 
@@ -117,12 +106,10 @@ export const handleDisLikeProduct = async (req, res) => {
             });
         }
 
-        // ✅ Handle null values properly
         const deletedLike = await Like.findOneAndDelete({
             userId,
             productId,
-            color: color || null,
-            size: size || null
+            color: color || null
         });
 
         if (!deletedLike) {
