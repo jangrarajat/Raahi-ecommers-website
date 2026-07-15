@@ -77,7 +77,20 @@ const addNewProduct = async (req, res) => {
 const updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    const updates = req.body;
+    let updates = req.body;
+    
+    // If variants is a string, parse it
+    if (updates.variants && typeof updates.variants === 'string') {
+      try {
+        updates.variants = JSON.parse(updates.variants);
+      } catch (e) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Invalid variants format" 
+        });
+      }
+    }
+
     const updatedProduct = await Product.findByIdAndUpdate(id, updates, {
       new: true,
     });
@@ -477,6 +490,147 @@ const getAllServiceAreas = async (req, res) => {
   }
 };
 
+// ==========================================
+// ADD NEW VARIANT TO EXISTING PRODUCT
+// ==========================================
+const addNewVariant = async (req, res) => {
+  try {
+    const { productId, color, sizes, images } = req.body;
+
+    if (!productId || !color || !sizes || sizes.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "ProductId, color, and at least one size are required"
+      });
+    }
+
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).json({ success: false, message: "Product not found" });
+    }
+
+    // Check if variant already exists
+    const existingVariant = product.variants.find(v => v.color === color);
+    if (existingVariant) {
+      return res.status(400).json({
+        success: false,
+        message: `Variant with color ${color} already exists`
+      });
+    }
+
+    // Add new variant
+    product.variants.push({
+      color,
+      sizes: sizes.map(s => ({ size: s.size, stock: s.stock || 0 })),
+      images: images || []
+    });
+
+    await product.save();
+
+    res.status(201).json({
+      success: true,
+      message: "New variant added successfully",
+      product
+    });
+  } catch (error) {
+    console.error("❌ Add Variant Error:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ==========================================
+// UPDATE SINGLE VARIANT
+// ==========================================
+const updateVariant = async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const { variantIndex, color, sizes, images } = req.body;
+
+    if (!productId || variantIndex === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: "ProductId and variantIndex are required"
+      });
+    }
+
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).json({ success: false, message: "Product not found" });
+    }
+
+    if (variantIndex >= product.variants.length) {
+      return res.status(400).json({ success: false, message: "Invalid variant index" });
+    }
+
+    // Update variant
+    product.variants[variantIndex] = {
+      ...product.variants[variantIndex],
+      color: color || product.variants[variantIndex].color,
+      sizes: sizes || product.variants[variantIndex].sizes,
+      images: images || product.variants[variantIndex].images
+    };
+
+    await product.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Variant updated successfully",
+      product
+    });
+  } catch (error) {
+    console.error("❌ Update Variant Error:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ==========================================
+// ✅ DELETE SINGLE VARIANT
+// ==========================================
+const deleteVariant = async (req, res) => {
+  try {
+    const { productId, variantIndex } = req.params;
+
+    if (!productId || variantIndex === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: "ProductId and variantIndex are required"
+      });
+    }
+
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).json({ success: false, message: "Product not found" });
+    }
+
+    if (variantIndex >= product.variants.length) {
+      return res.status(400).json({ success: false, message: "Invalid variant index" });
+    }
+
+    // Get variant to delete images from Cloudinary
+    const variantToDelete = product.variants[variantIndex];
+    if (variantToDelete.images && variantToDelete.images.length > 0) {
+      const deletePromises = variantToDelete.images.map((img) =>
+        deleteFromCloudinary(img.public_id)
+      );
+      await Promise.all(deletePromises);
+      console.log(`🗑️ Deleted ${variantToDelete.images.length} images for variant ${variantToDelete.color}`);
+    }
+
+    // Remove variant from array
+    product.variants.splice(variantIndex, 1);
+    await product.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Variant deleted successfully",
+      product
+    });
+  } catch (error) {
+    console.error("❌ Delete Variant Error:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 export {
   addNewProduct,
   updateProduct,
@@ -490,4 +644,7 @@ export {
   addServicesArea,
   updateDeliveryAvlabelStatus,
   getAllServiceAreas,
+  addNewVariant,
+  updateVariant,
+  deleteVariant,  // ✅ Added
 };
