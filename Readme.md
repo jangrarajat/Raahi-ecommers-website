@@ -127,4 +127,4 @@ Project Link: [https://github.com/jangrarajat/Raahi-ecommers-website.git]
 
 
 
-docker run -d p 8000:8000 --name raahi-e-commers -e ACCESS_TOKEN_EXPIR="15M" -e ACCESS_TOKEN_SECRET="fvfdfdbfdeewewef33" -e CLOUDINARY_API_KEY="939931434461552" -e CLOUDINARY_API_SECRET="sNvjU9fmH7_pmity_CcPiURbsnY" -e CLOUDINARY_CLOUD_NAME="dfqsa6hoc" -e EMAIL_PASS="cqaa rzet cysx mbfs" -e EMAIL_USER="rajatjangra940@gmail.com" -e FORGET_PASSWORD_TOKEN_EXPIR="10M" -e FORGET_PASSWORD_TOKEN_SECRET="grgregrr45bgfb" -e MONGODB_URL="mongodb+srv://rajatjangra9694:TH5YJubpJMBZ7OvT@clusterone.axu2z4n.mongodb.net/Raahi-E-Commers" -e OWNER_EMAIL="rajat@gmail.com" -e PORT=8000 -e REFRESH_TOKEN_EXPIR="7D" -e REFRESH_TOKEN_SECRET="*&^%$" raahi:latest
+ 
