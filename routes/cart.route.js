@@ -1,18 +1,20 @@
-import express from "express";
+import express from 'express';
 import { 
     addToCart, 
     removeFromCart, 
-    getCartList,
-    updateCartQuantity 
-} from "../controllers/cart.cantrollers.js";
-import { verifyJwt } from "../middleware/auth.jwt.js";  // ✅ Changed
+    getCartList, 
+    updateCartQuantity,
+    clearCart // Add this import
+} from '../controllers/cart.cantrollers.js';
+import { verifyJwt } from '../middleware/auth.jwt.js';
 
 const router = express.Router();
 
-// --- CART ROUTES ---
-router.post('/addCartProduct', verifyJwt, addToCart);      // ✅ Changed
-router.post('/disCartProduct', verifyJwt, removeFromCart); // ✅ Changed
-router.get('/cartList', verifyJwt, getCartList);           // ✅ Changed
-router.put('/updateCartQuantity', verifyJwt, updateCartQuantity); // ✅ Changed
+// All routes are protected with verifyJwt
+router.post('/addCartProduct', verifyJwt, addToCart);
+router.post('/disCartProduct', verifyJwt, removeFromCart);
+router.get('/cartList', verifyJwt, getCartList);
+router.put('/update-quantity', verifyJwt, updateCartQuantity);
+router.delete('/clear-cart', verifyJwt, clearCart); // Add this route
 
 export default router;

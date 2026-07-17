@@ -236,3 +236,22 @@ export const updateCartQuantity = async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 };
+
+// --- CLEAR ENTIRE CART (NEW METHOD) ---
+export const clearCart = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        
+        const result = await Cart.deleteMany({ userId });
+        
+        res.status(200).json({
+            success: true,
+            message: "Cart cleared successfully",
+            deletedCount: result.deletedCount
+        });
+        
+    } catch (error) {
+        console.error("Error in clearCart:", error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};

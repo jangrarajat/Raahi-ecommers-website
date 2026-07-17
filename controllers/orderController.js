@@ -152,8 +152,10 @@ const placeOrder = async (req, res) => {
       orderStatus: "pending",
     });
 
+    // --- CLEAR CART AFTER SUCCESSFUL ORDER ---
     if (!isBuyNow) {
       await Cart.deleteMany({ userId });
+      console.log(`Cart cleared for user: ${userId}`);
     }
 
     res.status(201).json({
