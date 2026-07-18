@@ -8,17 +8,25 @@ import cartRoute from './routes/cart.route.js'
 import getLimitedProduct from './routes/product.route.js'
 import addressRoute from './routes/address.route.js'
 import orderRouter from './routes/order.routes.js'
+import reviewRouter from './routes/review.routes.js' // Add this import
 import cors from 'cors'
 import cookieParser from "cookie-parser";
 import uploadImageRoute from './routes/uploadImage.route.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
 
 const app = express();
 
 // ✅ Get __dirname in ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// ✅ Create uploads directory if it doesn't exist (for multer)
+const uploadsDir = path.join(__dirname, 'public', 'temp');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
 
 // =============================================
 // 1. MIDDLEWARE
@@ -69,6 +77,7 @@ app.use('/api/limited', getLimitedProduct);
 app.use('/api/address', addressRoute);
 app.use("/api/order", orderRouter);
 app.use('/api/upload', uploadImageRoute);
+app.use('/api/review', reviewRouter); // Add this line
 
 // =============================================
 // 6. ✅ CATCH-ALL ROUTE FOR SPA (React Router)
