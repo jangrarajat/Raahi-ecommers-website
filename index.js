@@ -8,7 +8,8 @@ import cartRoute from './routes/cart.route.js'
 import getLimitedProduct from './routes/product.route.js'
 import addressRoute from './routes/address.route.js'
 import orderRouter from './routes/order.routes.js'
-import reviewRouter from './routes/review.routes.js' // Add this import
+import reviewRouter from './routes/review.routes.js'
+import couponRouter from './routes/coupon.routes.js'
 import cors from 'cors'
 import cookieParser from "cookie-parser";
 import uploadImageRoute from './routes/uploadImage.route.js';
@@ -77,7 +78,8 @@ app.use('/api/limited', getLimitedProduct);
 app.use('/api/address', addressRoute);
 app.use("/api/order", orderRouter);
 app.use('/api/upload', uploadImageRoute);
-app.use('/api/review', reviewRouter); // Add this line
+app.use('/api/review', reviewRouter);
+app.use('/api/coupon', couponRouter);
 
 // =============================================
 // 6. ✅ CATCH-ALL ROUTE FOR SPA (React Router)

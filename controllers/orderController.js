@@ -1,14 +1,15 @@
 import Order from "../models/order.model.js";
 import Cart from "../models/cartList.model.js";
 import Product from "../models/product.model.js";
+import Coupon from "../models/coupon.model.js";
 
 // =============================================
-// 1. PLACE ORDER (Handles Stock Deduction - Updated for new variant structure)
+// 1. PLACE ORDER (Handles Stock Deduction - Updated for new variant structure with Coupon)
 // =============================================
 const placeOrder = async (req, res) => {
   try {
     const userId = req.user._id;
-    const { addressId, paymentMethod, productId, singleQuantity, size, color } =
+    const { addressId, paymentMethod, productId, singleQuantity, size, color, couponCode } =
       req.body;
 
     if (!addressId || !paymentMethod) {
@@ -21,17 +22,17 @@ const placeOrder = async (req, res) => {
     }
 
     let orderItems = [];
-    let totalAmount = 0;
+    let totalAmountCalc = 0;
     let isBuyNow = false;
+    let appliedCoupon = null;
+    let discountAmount = 0;
 
-    // --- HELPER TO CHECK & DEDUCT STOCK (UPDATED FOR NEW VARIANT STRUCTURE) ---
+    // --- HELPER TO CHECK & DEDUCT STOCK ---
     const checkAndDeductStock = async (prodId, qty, pSize, pColor) => {
       const product = await Product.findById(prodId);
       if (!product) throw new Error(`Product not found`);
 
-      // If product has no variants (old structure), handle separately
       if (!product.variants || product.variants.length === 0) {
-        // Check if product has direct stock field
         if (product.stock !== undefined) {
           if (product.stock < qty) {
             throw new Error(`Insufficient stock for ${product.name}. Available: ${product.stock}`);
@@ -43,8 +44,6 @@ const placeOrder = async (req, res) => {
         throw new Error(`${product.name} has no stock information.`);
       }
 
-      // NEW STRUCTURE: variants has color and sizes array
-      // Find variant by color
       const variantIndex = product.variants.findIndex(
         (v) => v.color === pColor
       );
@@ -54,8 +53,6 @@ const placeOrder = async (req, res) => {
       }
 
       const variant = product.variants[variantIndex];
-      
-      // Find size within the variant's sizes array
       const sizeIndex = variant.sizes.findIndex(
         (s) => s.size === pSize
       );
@@ -70,7 +67,6 @@ const placeOrder = async (req, res) => {
         );
       }
 
-      // Deduct Stock
       product.variants[variantIndex].sizes[sizeIndex].stock -= qty;
       await product.save();
       return product;
@@ -83,7 +79,6 @@ const placeOrder = async (req, res) => {
       const reqSize = size || "N/A";
       const reqColor = color || "N/A";
 
-      // Check & Deduct
       const product = await checkAndDeductStock(
         productId,
         quantity,
@@ -99,7 +94,7 @@ const placeOrder = async (req, res) => {
         color: reqColor,
       });
 
-      totalAmount = product.price * quantity;
+      totalAmountCalc = product.price * quantity;
     }
 
     // --- SCENARIO B: CART CHECKOUT ---
@@ -117,7 +112,6 @@ const placeOrder = async (req, res) => {
         const reqSize = item.size || "N/A";
         const reqColor = item.color || "N/A";
 
-        // Check & Deduct for each item
         try {
           await checkAndDeductStock(
             item.productId._id,
@@ -129,7 +123,7 @@ const placeOrder = async (req, res) => {
           return res.status(400).json({ success: false, message: err.message });
         }
 
-        totalAmount += item.productId.price * item.quantity;
+        totalAmountCalc += item.productId.price * item.quantity;
 
         orderItems.push({
           productId: item.productId._id,
@@ -141,6 +135,45 @@ const placeOrder = async (req, res) => {
       }
     }
 
+    // --- COUPON LOGIC ---
+    let finalAmount = totalAmountCalc;
+    let appliedCouponCode = null;
+
+    if (couponCode) {
+      const coupon = await Coupon.findOne({
+        code: couponCode.toUpperCase(),
+        isActive: true,
+        expiryDate: { $gte: new Date() },
+      });
+
+      if (coupon) {
+        // Check usage limits
+        if (coupon.usageLimit === null || coupon.usedCount < coupon.usageLimit) {
+          const userUsage = coupon.usedBy.filter(
+            (entry) => entry.userId.toString() === userId.toString()
+          );
+          
+          if (userUsage.length < coupon.perUserLimit) {
+            // Calculate discount
+            if (coupon.discountType === "percentage") {
+              discountAmount = (totalAmountCalc * coupon.discountValue) / 100;
+            } else {
+              discountAmount = coupon.discountValue;
+            }
+
+            // Apply max discount cap
+            if (coupon.maxDiscountAmount && discountAmount > coupon.maxDiscountAmount) {
+              discountAmount = coupon.maxDiscountAmount;
+            }
+
+            finalAmount = Math.max(0, totalAmountCalc - discountAmount);
+            appliedCouponCode = coupon.code;
+            appliedCoupon = coupon;
+          }
+        }
+      }
+    }
+
     // --- CREATE ORDER ---
     const newOrder = await Order.create({
       userId,
@@ -148,9 +181,23 @@ const placeOrder = async (req, res) => {
       addressId,
       paymentMethod,
       paymentStatus: paymentMethod === "COD" ? "pending" : "paid",
-      totalAmount,
+      totalAmount: finalAmount,
       orderStatus: "pending",
+      couponCode: appliedCouponCode,
+      discountAmount: discountAmount,
+      originalTotal: totalAmountCalc,
     });
+
+    // --- UPDATE COUPON USAGE ---
+    if (appliedCoupon) {
+      appliedCoupon.usedCount += 1;
+      appliedCoupon.usedBy.push({
+        userId,
+        orderId: newOrder._id,
+        usedAt: new Date(),
+      });
+      await appliedCoupon.save();
+    }
 
     // --- CLEAR CART AFTER SUCCESSFUL ORDER ---
     if (!isBuyNow) {
@@ -162,6 +209,9 @@ const placeOrder = async (req, res) => {
       success: true,
       message: "Order Placed Successfully",
       orderId: newOrder._id,
+      discountApplied: discountAmount > 0,
+      discountAmount: discountAmount,
+      finalAmount: finalAmount,
     });
   } catch (error) {
     console.log("Error in placeOrder:", error.message);

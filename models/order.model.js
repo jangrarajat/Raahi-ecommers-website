@@ -17,7 +17,6 @@ const orderSchema = new mongoose.Schema({
             },
             quantity: { type: Number, required: true },
             price: { type: Number, required: true },
-            // --- NEW FIELDS ADDED ---
             size: { type: String, default: "N/A" }, 
             color: { type: String, default: "N/A" }
         }
@@ -50,6 +49,20 @@ const orderSchema = new mongoose.Schema({
     totalAmount: {
         type: Number,
         required: true
+    },
+
+    // Coupon fields
+    couponCode: {
+        type: String,
+        default: null
+    },
+    discountAmount: {
+        type: Number,
+        default: 0
+    },
+    originalTotal: {
+        type: Number,
+        default: null
     }
 
 }, { timestamps: true });
